@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- 交易统计 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">总交易次数</h6>
+                        <h3 class="card-title mb-0">{{ trades|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">总交易金额</h6>
+                        <h3 class="card-title mb-0">{{ '%.2f'|format(trades|sum(attribute='amount') * trades|sum(attribute='price')) }} USDT</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">盈利交易</h6>
+                        <h3 class="card-title mb-0 text-success">{{ trades|selectattr('profit', '>', 0)|list|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">亏损交易</h6>
+                        <h3 class="card-title mb-0 text-danger">{{ trades|selectattr('profit', '<', 0)|list|length }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交易历史 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">交易历史</h5>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-light" onclick="exportHistory('csv')">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> 导出CSV
+                    </button>
+                    <button type="button" class="btn btn-light" onclick="exportHistory('excel')">
+                        <i class="bi bi-file-earmark-excel"></i> 导出Excel
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 过滤器 -->
+                <form id="filterForm" class="row g-3 mb-4">
+                    <div class="col-md-2">
+                        <label for="symbol" class="form-label">交易对</label>
+                        <select class="form-select" id="symbol" name="symbol">
+                            <option value="">全部</option>
+                            {% for pair in trading_pairs %}
+                            <option value="{{ pair }}">{{ pair }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="side" class="form-label">方向</label>
+                        <select class="form-select" id="side" name="side">
+                            <option value="">全部</option>
+                            <option value="buy">买入</option>
+                            <option value="sell">卖出</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="profitType" class="form-label">盈亏</label>
+                        <select class="form-select" id="profitType" name="profit_type">
+                            <option value="">全部</option>
+                            <option value="profit">盈利</option>
+                            <option value="loss">亏损</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="startDate" class="form-label">开始日期</label>
+                        <input type="date" class="form-control" id="startDate" name="start_date">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="endDate" class="form-label">结束日期</label>
+                        <input type="date" class="form-control" id="endDate" name="end_date">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> 搜索
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> 重置
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 交易列表 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>交易对</th>
+                                <th>方向</th>
+                                <th>价格</th>
+                                <th>数量</th>
+                                <th>总额</th>
+                                <th>手续费</th>
+                                <th>盈亏</th>
+                                <th>盈亏率</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trade in trades %}
+                            <tr>
+                                <td>{{ trade.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ trade.symbol }}</td>
+                                <td class="{{ 'text-success' if trade.side == 'buy' else 'text-danger' }}">
+                                    {{ '买入' if trade.side == 'buy' else '卖出' }}
+                                </td>
+                                <td>{{ '%.2f'|format(trade.price) }}</td>
+                                <td>{{ '%.6f'|format(trade.amount) }}</td>
+                                <td>{{ '%.2f'|format(trade.price * trade.amount) }}</td>
+                                <td>{{ '%.6f'|format(trade.fee) }} {{ trade.fee_currency }}</td>
+                                <td class="{{ 'text-success' if trade.profit > 0 else 'text-danger' }}">
+                                    {{ '%+.2f'|format(trade.profit) }} USDT
+                                </td>
+                                <td class="{{ 'text-success' if trade.profit_rate > 0 else 'text-danger' }}">
+                                    {{ '%+.2f%%'|format(trade.profit_rate * 100) }}
+                                </td>
+                                <td>
+                                    <button class="btn btn-info btn-sm" onclick="viewTradeDetails({{ trade.id }})">
+                                        详情
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                <nav class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item {{ 'disabled' if not has_prev }}">
+                            <a class="page-link" href="{{ url_for('trading.history', page=page-1) if has_prev }}">上一页</a>
+                        </li>
+                        {% for p in range(1, total_pages + 1) %}
+                        <li class="page-item {{ 'active' if p == page }}">
+                            <a class="page-link" href="{{ url_for('trading.history', page=p) }}">{{ p }}</a>
+                        </li>
+                        {% endfor %}
+                        <li class="page-item {{ 'disabled' if not has_next }}">
+                            <a class="page-link" href="{{ url_for('trading.history', page=page+1) if has_next }}">下一页</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 交易详情模态框 -->
+<div class="modal fade" id="tradeDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">交易详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">交易ID</dt>
+                            <dd class="col-sm-8" id="detailTradeId">--</dd>
+                            
+                            <dt class="col-sm-4">交易时间</dt>
+                            <dd class="col-sm-8" id="detailCreatedAt">--</dd>
+                            
+                            <dt class="col-sm-4">交易对</dt>
+                            <dd class="col-sm-8" id="detailSymbol">--</dd>
+                            
+                            <dt class="col-sm-4">方向</dt>
+                            <dd class="col-sm-8" id="detailSide">--</dd>
+                            
+                            <dt class="col-sm-4">价格</dt>
+                            <dd class="col-sm-8" id="detailPrice">--</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">数量</dt>
+                            <dd class="col-sm-8" id="detailAmount">--</dd>
+                            
+                            <dt class="col-sm-4">总额</dt>
+                            <dd class="col-sm-8" id="detailTotal">--</dd>
+                            
+                            <dt class="col-sm-4">手续费</dt>
+                            <dd class="col-sm-8" id="detailFee">--</dd>
+                            
+                            <dt class="col-sm-4">盈亏</dt>
+                            <dd class="col-sm-8" id="detailProfit">--</dd>
+                            
+                            <dt class="col-sm-4">盈亏率</dt>
+                            <dd class="col-sm-8" id="detailProfitRate">--</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>相关订单</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>订单ID</th>
+                                    <th>时间</th>
+                                    <th>类型</th>
+                                    <th>价格</th>
+                                    <th>数量</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailOrders">
+                                <!-- 相关订单将通过JavaScript动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 查看交易详情
+async function viewTradeDetails(tradeId) {
+    try {
+        const response = await fetchAPI(`/api/trading/trade/${tradeId}`);
+        
+        if (response.success) {
+            const trade = response.data;
+            
+            // 更新基本信息
+            document.getElementById('detailTradeId').textContent = trade.id;
+            document.getElementById('detailCreatedAt').textContent = new Date(trade.created_at).toLocaleString();
+            document.getElementById('detailSymbol').textContent = trade.symbol;
+            document.getElementById('detailSide').textContent = trade.side === 'buy' ? '买入' : '卖出';
+            document.getElementById('detailPrice').textContent = `${trade.price.toFixed(2)} USDT`;
+            document.getElementById('detailAmount').textContent = `${trade.amount.toFixed(6)} ${trade.symbol.split('/')[0]}`;
+            document.getElementById('detailTotal').textContent = `${(trade.price * trade.amount).toFixed(2)} USDT`;
+            document.getElementById('detailFee').textContent = `${trade.fee.toFixed(6)} ${trade.fee_currency}`;
+            document.getElementById('detailProfit').textContent = `${trade.profit > 0 ? '+' : ''}${trade.profit.toFixed(2)} USDT`;
+            document.getElementById('detailProfitRate').textContent = `${trade.profit_rate > 0 ? '+' : ''}${(trade.profit_rate * 100).toFixed(2)}%`;
+            
+            // 更新相关订单
+            if (trade.orders && trade.orders.length > 0) {
+                const ordersHtml = trade.orders.map(order => `
+                    <tr>
+                        <td>${order.order_id}</td>
+                        <td>${new Date(order.created_at).toLocaleString()}</td>
+                        <td>${order.type === 'market' ? '市价' : '限价'}</td>
+                        <td>${order.price ? order.price.toFixed(2) : '--'} USDT</td>
+                        <td>${order.amount.toFixed(6)} ${trade.symbol.split('/')[0]}</td>
+                        <td>${getOrderStatusText(order.status)}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('detailOrders').innerHTML = ordersHtml;
+            } else {
+                document.getElementById('detailOrders').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center">暂无相关订单</td>
+                    </tr>
+                `;
+            }
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('tradeDetailsModal'));
+            modal.show();
+        } else {
+            throw new Error(response.message || '获取交易详情失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 导出交易历史
+async function exportHistory(format) {
+    try {
+        const formData = new FormData(document.getElementById('filterForm'));
+        const params = new URLSearchParams(formData);
+        params.append('format', format);
+        
+        const response = await fetchAPI(`/api/trading/export-history?${params.toString()}`);
+        
+        if (response.success) {
+            // 创建下载链接
+            const blob = new Blob([response.data], { type: format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `trade_history_${new Date().toISOString().split('T')[0]}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } else {
+            throw new Error(response.message || '导出交易历史失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 获取订单状态文本
+function getOrderStatusText(status) {
+    switch (status) {
+        case 'pending':
+            return '待处理';
+        case 'completed':
+            return '已完成';
+        case 'cancelled':
+            return '已取消';
+        case 'failed':
+            return '失败';
+        default:
+            return '未知';
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 表单提交
+    document.getElementById('filterForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(this);
+        const params = new URLSearchParams(formData);
+        window.location.href = `${window.location.pathname}?${params.toString()}`;
+    });
+    
+    // 重置表单
+    document.getElementById('filterForm').addEventListener('reset', function() {
+        setTimeout(() => this.submit(), 0);
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 交易表单 -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">手动交易</h5>
+            </div>
+            <div class="card-body">
+                <form id="tradeForm">
+                    <div class="mb-3">
+                        <label for="exchangeAccount" class="form-label">交易账户</label>
+                        <select class="form-select" id="exchangeAccount" name="exchange_account_id" required>
+                            <option value="">选择交易账户</option>
+                            {% for account in exchange_accounts %}
+                            <option value="{{ account.id }}">{{ account.name }} ({{ account.exchange }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="symbol" class="form-label">交易对</label>
+                        <select class="form-select" id="symbol" name="symbol" required>
+                            <option value="">选择交易对</option>
+                            {% for pair in trading_pairs %}
+                            <option value="{{ pair }}">{{ pair }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="side" class="form-label">交易方向</label>
+                        <select class="form-select" id="side" name="side" required>
+                            <option value="buy">买入</option>
+                            <option value="sell">卖出</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="type" class="form-label">订单类型</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="market">市价单</option>
+                            <option value="limit">限价单</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="priceField" style="display: none;">
+                        <label for="price" class="form-label">价格</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="price" name="price" step="0.000001">
+                            <span class="input-group-text">USDT</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">数量</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="amount" name="amount" step="0.000001" required>
+                            <span class="input-group-text" id="amountUnit">BTC</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableStopLoss">
+                            <label class="form-check-label" for="enableStopLoss">启用止损</label>
+                        </div>
+                    </div>
+                    <div class="mb-3" id="stopLossField" style="display: none;">
+                        <label for="stopLoss" class="form-label">止损价格</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="stopLoss" name="stop_loss" step="0.000001">
+                            <span class="input-group-text">USDT</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableTakeProfit">
+                            <label class="form-check-label" for="enableTakeProfit">启用止盈</label>
+                        </div>
+                    </div>
+                    <div class="mb-3" id="takeProfitField" style="display: none;">
+                        <label for="takeProfit" class="form-label">止盈价格</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="takeProfit" name="take_profit" step="0.000001">
+                            <span class="input-group-text">USDT</span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">提交订单</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 市场信息 -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">市场信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">最新价格</h6>
+                                <h3 class="card-title mb-0" id="lastPrice">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">24h涨跌幅</h6>
+                                <h3 class="card-title mb-0" id="priceChange">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">24h成交量</h6>
+                                <h3 class="card-title mb-0" id="volume">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">24h成交额</h6>
+                                <h3 class="card-title mb-0" id="quoteVolume">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近订单 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">最近订单</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>交易对</th>
+                                <th>方向</th>
+                                <th>类型</th>
+                                <th>价格</th>
+                                <th>数量</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentOrders">
+                            <!-- 最近订单将通过JavaScript动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let marketDataInterval = null;
+
+// 更新市场数据
+async function updateMarketData(symbol) {
+    if (!symbol) {
+        return;
+    }
+    
+    try {
+        const response = await fetchAPI(`/api/trading/market-info/${symbol}`);
+        
+        if (response.success) {
+            const data = response.data;
+            
+            // 更新市场数据显示
+            document.getElementById('lastPrice').textContent = `${parseFloat(data.last_price).toFixed(2)} USDT`;
+            document.getElementById('priceChange').textContent = `${data.price_change_percentage.toFixed(2)}%`;
+            document.getElementById('volume').textContent = `${parseFloat(data.volume).toFixed(2)}`;
+            document.getElementById('quoteVolume').textContent = `${parseFloat(data.quote_volume).toFixed(2)} USDT`;
+            
+            // 更新表单中的价格字段
+            const priceInput = document.getElementById('price');
+            if (priceInput) {
+                priceInput.value = data.last_price;
+            }
+        }
+    } catch (error) {
+        console.error('获取市场数据失败:', error);
+    }
+}
+
+// 更新最近订单
+async function updateRecentOrders() {
+    try {
+        const response = await fetchAPI('/api/trading/orders');
+        
+        if (response.success) {
+            const orders = response.data;
+            
+            // 生成订单HTML
+            const ordersHtml = orders.map(order => `
+                <tr>
+                    <td>${new Date(order.created_at).toLocaleString()}</td>
+                    <td>${order.symbol}</td>
+                    <td class="${order.side === 'buy' ? 'text-success' : 'text-danger'}">${order.side === 'buy' ? '买入' : '卖出'}</td>
+                    <td>${order.type === 'market' ? '市价' : '限价'}</td>
+                    <td>${order.price ? order.price.toFixed(2) : '--'}</td>
+                    <td>${order.amount.toFixed(6)}</td>
+                    <td>
+                        <span class="badge bg-${getOrderStatusBadge(order.status)}">${getOrderStatusText(order.status)}</span>
+                    </td>
+                    <td>
+                        ${order.status === 'pending' ? `
+                            <button class="btn btn-danger btn-sm" onclick="cancelOrder(${order.id})">
+                                取消
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('recentOrders').innerHTML = ordersHtml;
+        }
+    } catch (error) {
+        console.error('获取最近订单失败:', error);
+    }
+}
+
+// 获取订单状态样式
+function getOrderStatusBadge(status) {
+    switch (status) {
+        case 'pending':
+            return 'warning';
+        case 'completed':
+            return 'success';
+        case 'cancelled':
+            return 'secondary';
+        case 'failed':
+            return 'danger';
+        default:
+            return 'info';
+    }
+}
+
+// 获取订单状态文本
+function getOrderStatusText(status) {
+    switch (status) {
+        case 'pending':
+            return '待处理';
+        case 'completed':
+            return '已完成';
+        case 'cancelled':
+            return '已取消';
+        case 'failed':
+            return '失败';
+        default:
+            return '未知';
+    }
+}
+
+// 取消订单
+async function cancelOrder(tradeId) {
+    if (!confirm('确定要取消该订单吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetchAPI('/api/trading/cancel-order', {
+            method: 'POST',
+            body: JSON.stringify({ trade_id: tradeId })
+        });
+        
+        if (response.success) {
+            showAlert('订单已取消', 'success');
+            updateRecentOrders();
+        } else {
+            throw new Error(response.message || '取消订单失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 提交订单
+async function submitOrder(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // 移除未启用的止损止盈
+    if (!document.getElementById('enableStopLoss').checked) {
+        delete data.stop_loss;
+    }
+    if (!document.getElementById('enableTakeProfit').checked) {
+        delete data.take_profit;
+    }
+    
+    try {
+        const response = await fetchAPI('/api/trading/place-order', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        
+        if (response.success) {
+            showAlert('订单已提交', 'success');
+            form.reset();
+            updateRecentOrders();
+        } else {
+            throw new Error(response.message || '提交订单失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('tradeForm');
+    const typeSelect = document.getElementById('type');
+    const priceField = document.getElementById('priceField');
+    const symbolSelect = document.getElementById('symbol');
+    const amountUnit = document.getElementById('amountUnit');
+    const enableStopLoss = document.getElementById('enableStopLoss');
+    const stopLossField = document.getElementById('stopLossField');
+    const enableTakeProfit = document.getElementById('enableTakeProfit');
+    const takeProfitField = document.getElementById('takeProfitField');
+    
+    // 订单类型切换
+    typeSelect.addEventListener('change', function() {
+        priceField.style.display = this.value === 'limit' ? 'block' : 'none';
+    });
+    
+    // 交易对切换
+    symbolSelect.addEventListener('change', function() {
+        const symbol = this.value;
+        if (symbol) {
+            const base = symbol.split('/')[0];
+            amountUnit.textContent = base;
+            
+            // 清除之前的定时器
+            if (marketDataInterval) {
+                clearInterval(marketDataInterval);
+            }
+            
+            // 立即更新一次
+            updateMarketData(symbol);
+            
+            // 设置定时更新
+            marketDataInterval = setInterval(() => updateMarketData(symbol), 5000);
+        }
+    });
+    
+    // 止损开关
+    enableStopLoss.addEventListener('change', function() {
+        stopLossField.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // 止盈开关
+    enableTakeProfit.addEventListener('change', function() {
+        takeProfitField.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // 表单提交
+    form.addEventListener('submit', submitOrder);
+    
+    // 初始加载最近订单
+    updateRecentOrders();
+    
+    // 定时更新最近订单
+    setInterval(updateRecentOrders, 10000);
+});
+</script>
+{% endblock %} 

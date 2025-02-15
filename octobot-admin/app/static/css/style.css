@@ -1,0 +1,332 @@
+/* 全局样式 */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-fluid {
+    flex: 1;
+}
+
+/* 导航栏样式 */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+
+.navbar-brand img {
+    margin-right: 10px;
+}
+
+.nav-link i {
+    margin-right: 5px;
+}
+
+/* 卡片样式 */
+.card {
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    border: none;
+    margin-bottom: 1rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,.1);
+}
+
+/* 表格样式 */
+.table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.02);
+}
+
+/* 按钮样式 */
+.btn {
+    font-weight: 500;
+}
+
+.btn i {
+    margin-right: 5px;
+}
+
+/* 表单样式 */
+.form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.form-label {
+    font-weight: 500;
+}
+
+/* 警告提示框样式 */
+.alert {
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+
+/* 下拉菜单样式 */
+.dropdown-menu {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    border: none;
+}
+
+.dropdown-item i {
+    margin-right: 8px;
+    width: 16px;
+}
+
+/* 页脚样式 */
+.footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    padding: 1rem 0;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .navbar-brand img {
+        height: 24px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #fff;
+    }
+    
+    .card {
+        background-color: #2d2d2d;
+    }
+    
+    .card-header {
+        background-color: #333;
+        border-bottom-color: #444;
+    }
+    
+    .table {
+        color: #fff;
+    }
+    
+    .table thead th {
+        background-color: #333;
+        border-bottom-color: #444;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(255,255,255,.05);
+    }
+    
+    .form-control {
+        background-color: #333;
+        border-color: #444;
+        color: #fff;
+    }
+    
+    .form-control:focus {
+        background-color: #444;
+        border-color: #666;
+        color: #fff;
+    }
+    
+    .dropdown-menu {
+        background-color: #2d2d2d;
+        border-color: #444;
+    }
+    
+    .dropdown-item {
+        color: #fff;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #444;
+    }
+    
+    .footer {
+        background-color: #2d2d2d;
+        border-top-color: #444;
+    }
+}
+
+/* 自定义组件样式 */
+/* 价格显示 */
+.price-up {
+    color: #28a745;
+}
+
+.price-down {
+    color: #dc3545;
+}
+
+/* 状态标签 */
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-active {
+    background-color: rgba(40,167,69,.1);
+    color: #28a745;
+}
+
+.status-inactive {
+    background-color: rgba(108,117,125,.1);
+    color: #6c757d;
+}
+
+.status-warning {
+    background-color: rgba(255,193,7,.1);
+    color: #ffc107;
+}
+
+.status-danger {
+    background-color: rgba(220,53,69,.1);
+    color: #dc3545;
+}
+
+/* 加载动画 */
+.loading-spinner {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* 图表容器 */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 1rem;
+}
+
+/* 数据卡片 */
+.data-card {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.data-card-title {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.data-card-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.data-card-change {
+    font-size: 0.875rem;
+}
+
+/* 交易表单 */
+.trade-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.trade-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.trade-form .btn-group {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+/* 策略卡片 */
+.strategy-card {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.strategy-card:hover {
+    transform: translateY(-2px);
+}
+
+.strategy-card .card-body {
+    padding: 1.5rem;
+}
+
+.strategy-card .strategy-status {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+/* 通知列表 */
+.notification-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item.unread {
+    background-color: rgba(0,123,255,.05);
+}
+
+/* 设置页面 */
+.settings-section {
+    margin-bottom: 2rem;
+}
+
+.settings-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* 回测结果 */
+.backtest-result {
+    padding: 1.5rem;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    margin-bottom: 1rem;
+}
+
+.backtest-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.backtest-metric {
+    text-align: center;
+}
+
+.backtest-metric-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.backtest-metric-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+} 

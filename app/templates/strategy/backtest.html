@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 回测配置 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">回测配置</h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" onclick="startBacktest()" id="startBacktestBtn">
+                            <i class="bi bi-play-fill"></i> 开始回测
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="exportResults()">
+                            <i class="bi bi-download"></i> 导出结果
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form id="backtestForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">策略名称</label>
+                                    <input type="text" class="form-control" value="{{ strategy.name }}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">交易对</label>
+                                    <select class="form-select" name="trading_pairs" multiple required>
+                                        {% for pair in available_pairs %}
+                                        <option value="{{ pair }}" {{ 'selected' if pair in strategy.config.get('trading_pairs', []) }}>
+                                            {{ pair }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">回测周期</label>
+                                    <select class="form-select" name="timeframe" required>
+                                        <option value="1m">1分钟</option>
+                                        <option value="5m">5分钟</option>
+                                        <option value="15m">15分钟</option>
+                                        <option value="30m">30分钟</option>
+                                        <option value="1h" selected>1小时</option>
+                                        <option value="4h">4小时</option>
+                                        <option value="1d">1天</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">开始日期</label>
+                                    <input type="date" class="form-control" name="start_date" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">结束日期</label>
+                                    <input type="date" class="form-control" name="end_date" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">初始资金 (USDT)</label>
+                                    <input type="number" class="form-control" name="initial_capital" value="10000" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h6 class="mb-3">交易费用设置</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Maker费率 (%)</label>
+                                            <input type="number" class="form-control" name="maker_fee" value="0.1" step="0.01" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Taker费率 (%)</label>
+                                            <input type="number" class="form-control" name="taker_fee" value="0.1" step="0.01" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">滑点 (%)</label>
+                                            <input type="number" class="form-control" name="slippage" value="0.1" step="0.01" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 回测进度 -->
+    <div class="row mb-4" id="backtestProgress" style="display: none;">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">回测进度</h5>
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p class="text-center mb-0" id="progressText">准备中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 回测结果 -->
+    <div class="row" id="backtestResults" style="display: none;">
+        <!-- 性能指标 -->
+        <div class="col-md-12 mb-4">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">总收益率</h6>
+                            <h3 class="card-title mb-0" id="totalReturn">--</h3>
+                            <small class="text-muted">年化收益：<span id="annualReturn">--</span></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">夏普比率</h6>
+                            <h3 class="card-title mb-0" id="sharpeRatio">--</h3>
+                            <small class="text-muted">索提诺比率：<span id="sortinoRatio">--</span></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">最大回撤</h6>
+                            <h3 class="card-title mb-0" id="maxDrawdown">--</h3>
+                            <small class="text-muted">回撤周期：<span id="drawdownPeriod">--</span></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">胜率</h6>
+                            <h3 class="card-title mb-0" id="winRate">--</h3>
+                            <small class="text-muted">盈亏比：<span id="profitFactor">--</span></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表 -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#equityChart">权益曲线</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#drawdownChart">回撤分析</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#monthlyReturns">月度收益</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="equityChart">
+                            <div class="chart-container">
+                                <canvas id="equityCanvas"></canvas>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="drawdownChart">
+                            <div class="chart-container">
+                                <canvas id="drawdownCanvas"></canvas>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="monthlyReturns">
+                            <div class="chart-container">
+                                <canvas id="monthlyCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交易统计 -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">交易统计</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td>总交易次数</td>
+                                    <td class="text-end" id="totalTrades">--</td>
+                                </tr>
+                                <tr>
+                                    <td>盈利交易</td>
+                                    <td class="text-end" id="winningTrades">--</td>
+                                </tr>
+                                <tr>
+                                    <td>亏损交易</td>
+                                    <td class="text-end" id="losingTrades">--</td>
+                                </tr>
+                                <tr>
+                                    <td>平均持仓时间</td>
+                                    <td class="text-end" id="avgHoldingPeriod">--</td>
+                                </tr>
+                                <tr>
+                                    <td>最大单笔盈利</td>
+                                    <td class="text-end" id="maxProfit">--</td>
+                                </tr>
+                                <tr>
+                                    <td>最大单笔亏损</td>
+                                    <td class="text-end" id="maxLoss">--</td>
+                                </tr>
+                                <tr>
+                                    <td>平均盈利</td>
+                                    <td class="text-end" id="avgProfit">--</td>
+                                </tr>
+                                <tr>
+                                    <td>平均亏损</td>
+                                    <td class="text-end" id="avgLoss">--</td>
+                                </tr>
+                                <tr>
+                                    <td>总手续费</td>
+                                    <td class="text-end" id="totalFees">--</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交易记录 -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">交易记录</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="tradesTable">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>交易对</th>
+                                    <th>方向</th>
+                                    <th>价格</th>
+                                    <th>数量</th>
+                                    <th>手续费</th>
+                                    <th>收益</th>
+                                    <th>收益率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 交易记录将通过JavaScript动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 初始化日期选择器
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    
+    document.querySelector('input[name="end_date"]').value = today.toISOString().split('T')[0];
+    document.querySelector('input[name="start_date"]').value = oneYearAgo.toISOString().split('T')[0];
+});
+
+// 图表对象
+let equityChart = null;
+let drawdownChart = null;
+let monthlyChart = null;
+
+// 开始回测
+async function startBacktest() {
+    const form = document.getElementById('backtestForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    // 显示进度条
+    document.getElementById('backtestProgress').style.display = 'block';
+    document.getElementById('backtestResults').style.display = 'none';
+    document.getElementById('startBacktestBtn').disabled = true;
+    
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
+    
+    try {
+        const response = await fetch(`/api/strategy/{{ strategy.id }}/backtest`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            // 开始轮询回测状态
+            pollBacktestStatus(result.backtest_id);
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+        document.getElementById('backtestProgress').style.display = 'none';
+        document.getElementById('startBacktestBtn').disabled = false;
+    }
+}
+
+// 轮询回测状态
+async function pollBacktestStatus(backtestId) {
+    try {
+        const response = await fetch(`/api/strategy/backtest/${backtestId}/status`);
+        const data = await response.json();
+        
+        // 更新进度条
+        const progressBar = document.querySelector('.progress-bar');
+        progressBar.style.width = `${data.progress}%`;
+        document.getElementById('progressText').textContent = data.status;
+        
+        if (data.status === 'completed') {
+            // 获取回测结果
+            await loadBacktestResults(backtestId);
+        } else if (data.status === 'failed') {
+            throw new Error(data.message || '回测失败');
+        } else {
+            // 继续轮询
+            setTimeout(() => pollBacktestStatus(backtestId), 1000);
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+        document.getElementById('backtestProgress').style.display = 'none';
+        document.getElementById('startBacktestBtn').disabled = false;
+    }
+}
+
+// 加载回测结果
+async function loadBacktestResults(backtestId) {
+    try {
+        const response = await fetch(`/api/strategy/backtest/${backtestId}/results`);
+        const data = await response.json();
+        
+        // 显示结果区域
+        document.getElementById('backtestResults').style.display = 'block';
+        document.getElementById('backtestProgress').style.display = 'none';
+        document.getElementById('startBacktestBtn').disabled = false;
+        
+        // 更新性能指标
+        updatePerformanceMetrics(data.performance);
+        
+        // 更新图表
+        updateCharts(data.charts);
+        
+        // 更新交易记录
+        updateTradesTable(data.trades);
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+        document.getElementById('backtestProgress').style.display = 'none';
+        document.getElementById('startBacktestBtn').disabled = false;
+    }
+}
+
+// 更新性能指标
+function updatePerformanceMetrics(performance) {
+    document.getElementById('totalReturn').textContent = `${performance.total_return.toFixed(2)}%`;
+    document.getElementById('annualReturn').textContent = `${performance.annual_return.toFixed(2)}%`;
+    document.getElementById('sharpeRatio').textContent = performance.sharpe_ratio.toFixed(2);
+    document.getElementById('sortinoRatio').textContent = performance.sortino_ratio.toFixed(2);
+    document.getElementById('maxDrawdown').textContent = `${performance.max_drawdown.toFixed(2)}%`;
+    document.getElementById('drawdownPeriod').textContent = `${performance.drawdown_period}天`;
+    document.getElementById('winRate').textContent = `${performance.win_rate.toFixed(2)}%`;
+    document.getElementById('profitFactor').textContent = performance.profit_factor.toFixed(2);
+    
+    // 更新交易统计
+    document.getElementById('totalTrades').textContent = performance.total_trades;
+    document.getElementById('winningTrades').textContent = performance.winning_trades;
+    document.getElementById('losingTrades').textContent = performance.losing_trades;
+    document.getElementById('avgHoldingPeriod').textContent = `${performance.avg_holding_period}小时`;
+    document.getElementById('maxProfit').textContent = `${performance.max_profit.toFixed(2)}%`;
+    document.getElementById('maxLoss').textContent = `${performance.max_loss.toFixed(2)}%`;
+    document.getElementById('avgProfit').textContent = `${performance.avg_profit.toFixed(2)}%`;
+    document.getElementById('avgLoss').textContent = `${performance.avg_loss.toFixed(2)}%`;
+    document.getElementById('totalFees').textContent = `${performance.total_fees.toFixed(2)} USDT`;
+}
+
+// 更新图表
+function updateCharts(chartData) {
+    // 更新权益曲线
+    if (equityChart) {
+        equityChart.destroy();
+    }
+    equityChart = new Chart(
+        document.getElementById('equityCanvas').getContext('2d'),
+        {
+            type: 'line',
+            data: {
+                labels: chartData.equity.dates,
+                datasets: [{
+                    label: '权益曲线',
+                    data: chartData.equity.values,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        }
+    );
+    
+    // 更新回撤图表
+    if (drawdownChart) {
+        drawdownChart.destroy();
+    }
+    drawdownChart = new Chart(
+        document.getElementById('drawdownCanvas').getContext('2d'),
+        {
+            type: 'line',
+            data: {
+                labels: chartData.drawdown.dates,
+                datasets: [{
+                    label: '回撤',
+                    data: chartData.drawdown.values,
+                    borderColor: 'rgb(255, 99, 132)',
+                    fill: true,
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        reverse: true
+                    }
+                }
+            }
+        }
+    );
+    
+    // 更新月度收益图表
+    if (monthlyChart) {
+        monthlyChart.destroy();
+    }
+    monthlyChart = new Chart(
+        document.getElementById('monthlyCanvas').getContext('2d'),
+        {
+            type: 'bar',
+            data: {
+                labels: chartData.monthly.months,
+                datasets: [{
+                    label: '月度收益率',
+                    data: chartData.monthly.returns,
+                    backgroundColor: chartData.monthly.returns.map(value => 
+                        value >= 0 ? 'rgba(75, 192, 192, 0.5)' : 'rgba(255, 99, 132, 0.5)'
+                    ),
+                    borderColor: chartData.monthly.returns.map(value =>
+                        value >= 0 ? 'rgb(75, 192, 192)' : 'rgb(255, 99, 132)'
+                    ),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        }
+    );
+}
+
+// 更新交易记录表格
+function updateTradesTable(trades) {
+    const tbody = document.querySelector('#tradesTable tbody');
+    tbody.innerHTML = '';
+    
+    trades.forEach(trade => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${new Date(trade.time).toLocaleString()}</td>
+            <td>${trade.symbol}</td>
+            <td>
+                <span class="badge bg-${trade.side === 'buy' ? 'success' : 'danger'}">
+                    ${trade.side === 'buy' ? '买入' : '卖出'}
+                </span>
+            </td>
+            <td>${trade.price.toFixed(4)}</td>
+            <td>${trade.amount.toFixed(4)}</td>
+            <td>${trade.fee.toFixed(4)}</td>
+            <td class="${trade.profit >= 0 ? 'text-success' : 'text-danger'}">
+                ${trade.profit.toFixed(2)}
+            </td>
+            <td class="${trade.profit_rate >= 0 ? 'text-success' : 'text-danger'}">
+                ${trade.profit_rate.toFixed(2)}%
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// 导出结果
+function exportResults() {
+    // TODO: 实现导出功能
+    showAlert('导出功能即将推出', 'info');
+}
+</script>
+{% endblock %} 

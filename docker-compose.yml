@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  octobot:
+    image: drakkarsoftware/octobot:stable
+    container_name: OctoBot
+    ports:
+      - "5001:5001"
+    environment:
+      - LANG=zh_CN.UTF-8
+      - LC_ALL=zh_CN.UTF-8
+    volumes:
+      - "./user:/octobot/user"
+      - "./tentacles:/octobot/tentacles"
+      - "./logs:/octobot/logs"
+    restart: unless-stopped 

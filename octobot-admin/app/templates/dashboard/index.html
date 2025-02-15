@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- 页面标题 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">仪表盘</h1>
+        <div class="btn-group">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                <i class="bi bi-plus-lg"></i> 添加交易账户
+            </button>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStrategyModal">
+                <i class="bi bi-plus-lg"></i> 添加策略
+            </button>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">总资产价值</h6>
+                    <h3 class="card-title mb-0" id="total-portfolio-value">--</h3>
+                    <small class="text-muted">
+                        24h变化：<span id="portfolio-change" class="ms-1">--</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">今日交易</h6>
+                    <h3 class="card-title mb-0">{{ trade_stats.today_trades }}</h3>
+                    <small class="text-muted">
+                        总交易：<span class="ms-1">{{ trade_stats.total_trades }}</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">交易成功率</h6>
+                    <h3 class="card-title mb-0">{{ "%.2f"|format(trade_stats.success_rate) }}%</h3>
+                    <small class="text-muted">
+                        成功：{{ trade_stats.successful_trades }} / 失败：{{ trade_stats.failed_trades }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">运行中策略</h6>
+                    <h3 class="card-title mb-0" id="active-strategies-count">--</h3>
+                    <small class="text-muted">
+                        总策略：<span class="ms-1">{{ strategies|length }}</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表和数据表格 -->
+    <div class="row g-3">
+        <!-- 左侧列 -->
+        <div class="col-lg-8">
+            <!-- 交易历史图表 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">交易历史</h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary active" data-chart="volume">
+                            交易量
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-chart="count">
+                            交易次数
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-chart="pnl">
+                            盈亏
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="tradeHistoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近交易记录 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">最近交易</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="trade-history">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>交易对</th>
+                                <th>方向</th>
+                                <th>数量</th>
+                                <th>价格</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trade in recent_trades %}
+                            <tr>
+                                <td>{{ trade.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ trade.symbol }}</td>
+                                <td>{{ '买入' if trade.side == 'buy' else '卖出' }}</td>
+                                <td>{{ "%.8f"|format(trade.amount) }}</td>
+                                <td>{{ "%.8f"|format(trade.price) }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ trade.status.lower() }}">
+                                        {{ {'completed': '已完成', 'pending': '待处理', 'failed': '失败'}[trade.status] }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧列 -->
+        <div class="col-lg-4">
+            <!-- 资产分布 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">资产分布</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="portfolioChart"></canvas>
+                    </div>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>资产</th>
+                                    <th>数量</th>
+                                    <th>价值</th>
+                                    <th>24h变化</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolio-assets">
+                                <tr>
+                                    <td colspan="4" class="text-center">加载中...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 策略性能 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">策略性能</h5>
+                </div>
+                <div class="card-body">
+                    {% if strategies %}
+                    <div class="list-group list-group-flush">
+                        {% for strategy in strategies %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">{{ strategy.name }}</h6>
+                                    <small class="text-muted">{{ strategy.type }}</small>
+                                </div>
+                                <span class="status-badge" id="strategy-status-{{ strategy.id }}">--</span>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-muted">胜率：<span id="strategy-winrate-{{ strategy.id }}">--</span></small>
+                                <small class="text-muted">收益：<span id="strategy-pnl-{{ strategy.id }}">--</span></small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">暂无策略</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 市场概览 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">市场概览</h5>
+                </div>
+                <div class="card-body">
+                    <div id="market-overview">
+                        <div class="text-center py-3">
+                            <p class="text-muted mb-0">加载中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加交易账户模态框 -->
+<div class="modal fade" id="addAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加交易账户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="add-account-form" action="/api/exchange/add" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">交易所</label>
+                        <select class="form-select" name="exchange" required>
+                            <option value="">请选择交易所</option>
+                            <option value="binance">Binance</option>
+                            <option value="huobi">Huobi</option>
+                            <option value="okex">OKEx</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API Key</label>
+                        <input type="text" class="form-control" name="api_key" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API Secret</label>
+                        <input type="password" class="form-control" name="api_secret" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <input type="text" class="form-control" name="note">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 添加策略模态框 -->
+<div class="modal fade" id="addStrategyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加策略</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="add-strategy-form" action="/api/strategy/add" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">策略名称</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">策略类型</label>
+                        <select class="form-select" name="type" required>
+                            <option value="">请选择策略类型</option>
+                            <option value="grid">网格交易</option>
+                            <option value="martingale">马丁格尔</option>
+                            <option value="dca">定投策略</option>
+                            <option value="custom">自定义策略</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">交易账户</label>
+                        <select class="form-select" name="exchange_account_id" required>
+                            <option value="">请选择交易账户</option>
+                            {% for account in exchange_accounts %}
+                            <option value="{{ account.id }}">{{ account.exchange }} - {{ account.note or '未命名' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">交易对</label>
+                        <input type="text" class="form-control" name="symbol" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">策略配置</label>
+                        <textarea class="form-control" name="config" rows="5" placeholder="请输入 JSON 格式的策略配置"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script>
+// 初始化图表
+let tradeHistoryChart = null;
+let portfolioChart = null;
+
+// 更新交易历史图表
+const updateTradeHistoryChart = async () => {
+    try {
+        const response = await fetch('/api/dashboard/trade-history');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const chartData = data.data;
+            
+            if (tradeHistoryChart) {
+                tradeHistoryChart.destroy();
+            }
+            
+            tradeHistoryChart = createChart('tradeHistoryChart', 'bar', {
+                labels: chartData.dates,
+                datasets: [{
+                    label: '交易量',
+                    data: chartData.trade_volumes,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            }, {
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Failed to update trade history chart:', error);
+    }
+};
+
+// 更新资产分布图表
+const updatePortfolioChart = async () => {
+    try {
+        const response = await fetch('/api/dashboard/portfolio');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const portfolioData = data.data;
+            
+            // 更新资产表格
+            const tbody = $('#portfolio-assets');
+            tbody.empty();
+            
+            portfolioData.assets.forEach(asset => {
+                const row = `
+                    <tr>
+                        <td>${asset.symbol}</td>
+                        <td>${formatNumber(asset.amount)}</td>
+                        <td>${formatNumber(asset.value)}</td>
+                        <td class="${asset.change_24h >= 0 ? 'text-success' : 'text-danger'}">
+                            ${formatNumber(asset.change_24h)}%
+                        </td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+            
+            // 更新饼图
+            if (portfolioChart) {
+                portfolioChart.destroy();
+            }
+            
+            const chartData = {
+                labels: portfolioData.assets.map(asset => asset.symbol),
+                datasets: [{
+                    data: portfolioData.assets.map(asset => asset.value),
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)'
+                    ]
+                }]
+            };
+            
+            portfolioChart = createChart('portfolioChart', 'pie', chartData, {
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12
+                        }
+                    }
+                }
+            });
+            
+            // 更新总资产价值
+            $('#total-portfolio-value').text(formatNumber(portfolioData.total_value));
+        }
+    } catch (error) {
+        console.error('Failed to update portfolio chart:', error);
+    }
+};
+
+// 更新策略性能
+const updateStrategyPerformance = async () => {
+    try {
+        const response = await fetch('/api/dashboard/strategy-performance');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            let activeCount = 0;
+            
+            data.data.forEach(strategy => {
+                if (strategy.status === 'active') {
+                    activeCount++;
+                }
+                
+                $(`#strategy-status-${strategy.id}`)
+                    .removeClass()
+                    .addClass(`status-badge status-${strategy.status.toLowerCase()}`)
+                    .text(strategy.status === 'active' ? '运行中' : '已停止');
+                
+                $(`#strategy-winrate-${strategy.id}`).text(`${formatNumber(strategy.win_rate)}%`);
+                $(`#strategy-pnl-${strategy.id}`).text(`${formatNumber(strategy.profit_loss)}%`);
+            });
+            
+            $('#active-strategies-count').text(activeCount);
+        }
+    } catch (error) {
+        console.error('Failed to update strategy performance:', error);
+    }
+};
+
+// 更新市场概览
+const updateMarketOverview = async () => {
+    try {
+        const response = await fetch('/api/dashboard/market-overview');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const container = $('#market-overview');
+            container.empty();
+            
+            data.data.forEach(market => {
+                const card = `
+                    <div class="market-card mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">${market.symbol}</h6>
+                            <span class="${market.change_24h >= 0 ? 'text-success' : 'text-danger'}">
+                                ${formatNumber(market.change_24h)}%
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span class="text-muted">价格</span>
+                            <span>${formatNumber(market.price)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">24h高</span>
+                            <span>${formatNumber(market.high_24h)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">24h低</span>
+                            <span>${formatNumber(market.low_24h)}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">24h成交量</span>
+                            <span>${formatNumber(market.volume_24h)}</span>
+                        </div>
+                    </div>
+                `;
+                container.append(card);
+            });
+        }
+    } catch (error) {
+        console.error('Failed to update market overview:', error);
+    }
+};
+
+// 页面加载完成后初始化
+$(document).ready(() => {
+    // 初始化所有图表和数据
+    updateTradeHistoryChart();
+    updatePortfolioChart();
+    updateStrategyPerformance();
+    updateMarketOverview();
+    
+    // 设置定时更新
+    setInterval(() => {
+        updatePortfolioChart();
+        updateStrategyPerformance();
+        updateMarketOverview();
+    }, 30000); // 每30秒更新一次
+    
+    // 交易历史图表切换
+    $('.btn-group [data-chart]').on('click', function() {
+        $(this).addClass('active').siblings().removeClass('active');
+        const chartType = $(this).data('chart');
+        // TODO: 根据选择的图表类型更新数据
+    });
+});
+</script>
+{% endblock %} 

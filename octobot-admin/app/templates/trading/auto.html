@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 策略列表 -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">自动交易策略</h5>
+                <a href="{{ url_for('strategy.create') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> 创建新策略
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for strategy in strategies %}
+                    <div class="col-md-4 mb-4">
+                        <div class="card strategy-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">{{ strategy.name }}</h5>
+                                    <span class="badge bg-{{ 'success' if strategy.id in active_strategies|map(attribute='id') else 'secondary' }}">
+                                        {{ '运行中' if strategy.id in active_strategies|map(attribute='id') else '已停止' }}
+                                    </span>
+                                </div>
+                                <p class="card-text text-muted">{{ strategy.type }}</p>
+                                <div class="strategy-controls">
+                                    {% if strategy.id in active_strategies|map(attribute='id') %}
+                                    <button class="btn btn-danger btn-sm" onclick="stopStrategy({{ strategy.id }})">
+                                        <i class="bi bi-stop-circle"></i> 停止
+                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-success btn-sm" onclick="startStrategy({{ strategy.id }})">
+                                        <i class="bi bi-play-circle"></i> 启动
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-primary btn-sm" onclick="editStrategy({{ strategy.id }})">
+                                        <i class="bi bi-gear"></i> 配置
+                                    </button>
+                                    <button class="btn btn-info btn-sm" onclick="viewPerformance({{ strategy.id }})">
+                                        <i class="bi bi-graph-up"></i> 绩效
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 运行中的策略 -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">运行中的策略</h5>
+            </div>
+            <div class="card-body">
+                {% if active_strategies %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>策略名称</th>
+                                <th>类型</th>
+                                <th>运行时间</th>
+                                <th>交易次数</th>
+                                <th>盈亏</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for strategy in active_strategies %}
+                            <tr>
+                                <td>{{ strategy.name }}</td>
+                                <td>{{ strategy.type }}</td>
+                                <td>{{ strategy.status.running_time }}</td>
+                                <td>{{ strategy.status.total_trades }}</td>
+                                <td class="{{ 'text-success' if strategy.status.profit > 0 else 'text-danger' }}">
+                                    {{ '%+.2f%%'|format(strategy.status.profit) }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">运行中</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-danger btn-sm" onclick="stopStrategy({{ strategy.id }})">
+                                        <i class="bi bi-stop-circle"></i> 停止
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">暂无运行中的策略</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 策略配置模态框 -->
+<div class="modal fade" id="strategyConfigModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">策略配置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="strategyConfigForm">
+                    <input type="hidden" id="strategyId" name="strategy_id">
+                    <div class="mb-3">
+                        <label for="strategyName" class="form-label">策略名称</label>
+                        <input type="text" class="form-control" id="strategyName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="strategyType" class="form-label">策略类型</label>
+                        <select class="form-select" id="strategyType" name="type" required>
+                            <option value="grid">网格交易</option>
+                            <option value="dca">定投策略</option>
+                            <option value="trend">趋势跟踪</option>
+                            <option value="arbitrage">套利策略</option>
+                            <option value="signal">信号策略</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tradingPairs" class="form-label">交易对</label>
+                        <select class="form-select" id="tradingPairs" name="trading_pairs" multiple required>
+                            <optgroup label="USDT 交易对">
+                                <option value="BTC/USDT">BTC/USDT</option>
+                                <option value="ETH/USDT">ETH/USDT</option>
+                                <option value="BNB/USDT">BNB/USDT</option>
+                            </optgroup>
+                            <optgroup label="USDC 交易对">
+                                <option value="BTC/USDC">BTC/USDC</option>
+                                <option value="ETH/USDC">ETH/USDC</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div id="gridConfig" class="strategy-config" style="display: none;">
+                        <h6>网格策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">上边界价格</label>
+                                    <input type="number" class="form-control" name="grid_upper_price" step="0.000001">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">下边界价格</label>
+                                    <input type="number" class="form-control" name="grid_lower_price" step="0.000001">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">网格数量</label>
+                                    <input type="number" class="form-control" name="grid_count" min="2">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">投资金额</label>
+                                    <input type="number" class="form-control" name="grid_investment" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="dcaConfig" class="strategy-config" style="display: none;">
+                        <h6>定投策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">定投金额</label>
+                                    <input type="number" class="form-control" name="dca_amount" step="0.01">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">定投间隔(小时)</label>
+                                    <input type="number" class="form-control" name="dca_interval" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="trendConfig" class="strategy-config" style="display: none;">
+                        <h6>趋势策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">MA周期</label>
+                                    <input type="number" class="form-control" name="trend_ma_period" min="1">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">RSI周期</label>
+                                    <input type="number" class="form-control" name="trend_rsi_period" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">风险控制</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">止损比例(%)</label>
+                                    <input type="number" class="form-control" name="stop_loss" step="0.1">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">止盈比例(%)</label>
+                                    <input type="number" class="form-control" name="take_profit" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveStrategyConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 策略绩效模态框 -->
+<div class="modal fade" id="performanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">策略绩效</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">总收益率</h6>
+                                <h3 class="card-title mb-0" id="totalReturn">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">夏普比率</h6>
+                                <h3 class="card-title mb-0" id="sharpeRatio">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">最大回撤</h6>
+                                <h3 class="card-title mb-0" id="maxDrawdown">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">胜率</h6>
+                                <h3 class="card-title mb-0" id="winRate">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+                <div class="table-responsive mt-4">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>指标</th>
+                                <th>数值</th>
+                            </tr>
+                        </thead>
+                        <tbody id="performanceMetrics">
+                            <!-- 绩效指标将通过JavaScript动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let performanceChart = null;
+
+// 启动策略
+async function startStrategy(strategyId) {
+    if (!confirm('确定要启动该策略吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetchAPI(`/api/strategy/${strategyId}/start`, {
+            method: 'POST'
+        });
+        
+        if (response.success) {
+            showAlert('策略已启动', 'success');
+            location.reload();
+        } else {
+            throw new Error(response.message || '启动策略失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 停止策略
+async function stopStrategy(strategyId) {
+    if (!confirm('确定要停止该策略吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetchAPI(`/api/strategy/${strategyId}/stop`, {
+            method: 'POST'
+        });
+        
+        if (response.success) {
+            showAlert('策略已停止', 'success');
+            location.reload();
+        } else {
+            throw new Error(response.message || '停止策略失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 编辑策略
+async function editStrategy(strategyId) {
+    try {
+        const response = await fetchAPI(`/api/strategy/${strategyId}`);
+        
+        if (response.success) {
+            const strategy = response.data;
+            
+            // 填充表单
+            document.getElementById('strategyId').value = strategy.id;
+            document.getElementById('strategyName').value = strategy.name;
+            document.getElementById('strategyType').value = strategy.type;
+            
+            // 显示对应的配置面板
+            showStrategyConfig(strategy.type);
+            
+            // 填充配置数据
+            Object.keys(strategy.config).forEach(key => {
+                const input = document.querySelector(`[name="${key}"]`);
+                if (input) {
+                    input.value = strategy.config[key];
+                }
+            });
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('strategyConfigModal'));
+            modal.show();
+        } else {
+            throw new Error(response.message || '获取策略信息失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 显示策略配置面板
+function showStrategyConfig(type) {
+    // 隐藏所有配置面板
+    document.querySelectorAll('.strategy-config').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // 显示选中的配置面板
+    const configPanel = document.getElementById(`${type}Config`);
+    if (configPanel) {
+        configPanel.style.display = 'block';
+    }
+}
+
+// 保存策略配置
+async function saveStrategyConfig() {
+    const form = document.getElementById('strategyConfigForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await fetchAPI(`/api/strategy/${data.strategy_id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+        
+        if (response.success) {
+            showAlert('策略配置已保存', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('strategyConfigModal')).hide();
+            location.reload();
+        } else {
+            throw new Error(response.message || '保存策略配置失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 查看策略绩效
+async function viewPerformance(strategyId) {
+    try {
+        const response = await fetchAPI(`/api/strategy/${strategyId}/performance`);
+        
+        if (response.success) {
+            const data = response.data;
+            
+            // 更新绩效指标
+            document.getElementById('totalReturn').textContent = `${data.total_return.toFixed(2)}%`;
+            document.getElementById('sharpeRatio').textContent = data.sharpe_ratio.toFixed(2);
+            document.getElementById('maxDrawdown').textContent = `${data.max_drawdown.toFixed(2)}%`;
+            document.getElementById('winRate').textContent = `${data.win_rate.toFixed(2)}%`;
+            
+            // 更新绩效图表
+            updatePerformanceChart(data.equity_curve);
+            
+            // 更新绩效指标表格
+            const metricsHtml = Object.entries(data.metrics).map(([key, value]) => `
+                <tr>
+                    <td>${key}</td>
+                    <td>${typeof value === 'number' ? value.toFixed(4) : value}</td>
+                </tr>
+            `).join('');
+            document.getElementById('performanceMetrics').innerHTML = metricsHtml;
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('performanceModal'));
+            modal.show();
+        } else {
+            throw new Error(response.message || '获取策略绩效失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 更新绩效图表
+function updatePerformanceChart(data) {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    if (performanceChart) {
+        performanceChart.destroy();
+    }
+    
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => new Date(d.timestamp).toLocaleDateString()),
+            datasets: [{
+                label: '净值曲线',
+                data: data.map(d => d.equity),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '策略净值曲线'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 策略类型切换时显示对应的配置面板
+    document.getElementById('strategyType').addEventListener('change', function() {
+        showStrategyConfig(this.value);
+    });
+});
+</script>
+{% endblock %} 

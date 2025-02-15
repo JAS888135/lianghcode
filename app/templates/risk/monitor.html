@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 风险指标卡片 -->
+    <div class="col-md-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">账户风险度</h6>
+                        <h3 class="card-title mb-0" id="accountRisk">--</h3>
+                        <small class="text-muted">基于当前持仓和市场波动性</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">当前回撤</h6>
+                        <h3 class="card-title mb-0" id="currentDrawdown">--</h3>
+                        <small class="text-muted">从最高点计算</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">持仓压力</h6>
+                        <h3 class="card-title mb-0" id="positionStress">--</h3>
+                        <small class="text-muted">基于持仓量和市场深度</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">波动风险</h6>
+                        <h3 class="card-title mb-0" id="volatilityRisk">--</h3>
+                        <small class="text-muted">基于市场波动性</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 持仓风险监控 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">持仓风险监控</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>交易对</th>
+                                <th>持仓量</th>
+                                <th>未实现盈亏</th>
+                                <th>距离止损</th>
+                                <th>风险等级</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionRiskBody">
+                            <!-- 动态加载持仓风险数据 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 风险预警 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">风险预警</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group" id="alertsList">
+                    <!-- 动态加载预警信息 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 风险趋势图 -->
+    <div class="col-md-12 mt-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">风险趋势</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="riskTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let riskTrendChart = null;
+
+// 初始化图表
+function initChart() {
+    const ctx = document.getElementById('riskTrendChart').getContext('2d');
+    riskTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: '账户风险度',
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1
+                },
+                {
+                    label: '回撤',
+                    data: [],
+                    borderColor: 'rgb(54, 162, 235)',
+                    tension: 0.1
+                },
+                {
+                    label: '持仓压力',
+                    data: [],
+                    borderColor: 'rgb(255, 206, 86)',
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: '风险指标趋势'
+                }
+            }
+        }
+    });
+}
+
+// 更新风险指标
+function updateRiskMetrics(data) {
+    document.getElementById('accountRisk').textContent = `${data.account_risk}%`;
+    document.getElementById('currentDrawdown').textContent = `${data.current_drawdown}%`;
+    document.getElementById('positionStress').textContent = `${data.position_stress}%`;
+    document.getElementById('volatilityRisk').textContent = `${data.volatility_risk}%`;
+    
+    // 更新图表
+    riskTrendChart.data.labels.push(new Date().toLocaleTimeString());
+    riskTrendChart.data.datasets[0].data.push(data.account_risk);
+    riskTrendChart.data.datasets[1].data.push(data.current_drawdown);
+    riskTrendChart.data.datasets[2].data.push(data.position_stress);
+    
+    // 保持最新的30个数据点
+    if (riskTrendChart.data.labels.length > 30) {
+        riskTrendChart.data.labels.shift();
+        riskTrendChart.data.datasets.forEach(dataset => dataset.data.shift());
+    }
+    
+    riskTrendChart.update();
+}
+
+// 更新持仓风险表格
+function updatePositionRisks(positions) {
+    const tbody = document.getElementById('positionRiskBody');
+    tbody.innerHTML = '';
+    
+    positions.forEach(position => {
+        const row = document.createElement('tr');
+        const riskClass = position.risk_level <= 30 ? 'success' : 
+                         position.risk_level <= 60 ? 'warning' : 'danger';
+        
+        row.innerHTML = `
+            <td>${position.symbol}</td>
+            <td>${formatNumber(position.amount, 4)}</td>
+            <td class="text-${position.unrealized_pnl >= 0 ? 'success' : 'danger'}">
+                ${formatNumber(position.unrealized_pnl, 2)}%
+            </td>
+            <td>${formatNumber(position.stop_loss_distance, 2)}%</td>
+            <td>
+                <span class="badge bg-${riskClass}">
+                    ${position.risk_level}%
+                </span>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// 更新预警信息
+function updateAlerts(alerts) {
+    const alertsList = document.getElementById('alertsList');
+    
+    // 保留现有的预警，添加新的预警到顶部
+    alerts.forEach(alert => {
+        const alertElement = document.createElement('div');
+        alertElement.className = `list-group-item list-group-item-${alert.level}`;
+        alertElement.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">${alert.title}</h6>
+                <small>${formatDateTime(alert.timestamp)}</small>
+            </div>
+            <p class="mb-1">${alert.message}</p>
+            <small>交易对: ${alert.symbol}</small>
+        `;
+        
+        alertsList.insertBefore(alertElement, alertsList.firstChild);
+    });
+    
+    // 保持最新的10条预警
+    while (alertsList.children.length > 10) {
+        alertsList.removeChild(alertsList.lastChild);
+    }
+}
+
+// 轮询风险数据
+async function pollRiskData() {
+    try {
+        const response = await fetch('/api/risk/monitor');
+        const data = await response.json();
+        
+        updateRiskMetrics(data.metrics);
+        updatePositionRisks(data.positions);
+        updateAlerts(data.alerts);
+        
+    } catch (error) {
+        console.error('获取风险数据失败:', error);
+    }
+    
+    // 每5秒更新一次
+    setTimeout(pollRiskData, 5000);
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initChart();
+    pollRiskData();
+});
+</script>
+{% endblock %} 

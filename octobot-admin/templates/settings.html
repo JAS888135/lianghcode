@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">系统设置</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">系统语言</label>
+                        <select class="form-select">
+                            <option selected>中文</option>
+                            <option>English</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">时区设置</label>
+                        <select class="form-select">
+                            <option selected>Asia/Shanghai (UTC+8)</option>
+                            <option>UTC</option>
+                            <option>America/New_York</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="darkMode">
+                            <label class="form-check-label" for="darkMode">深色模式</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary">保存设置</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">通知设置</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="emailNotification">
+                            <label class="form-check-label" for="emailNotification">
+                                邮件通知
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="telegramNotification">
+                            <label class="form-check-label" for="telegramNotification">
+                                Telegram通知
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">通知频率</label>
+                        <select class="form-select">
+                            <option>实时通知</option>
+                            <option>每小时汇总</option>
+                            <option>每日汇总</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary">保存通知设置</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">账户安全</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">修改密码</label>
+                        <input type="password" class="form-control" placeholder="当前密码">
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" class="form-control" placeholder="新密码">
+                    </div>
+                    <div class="mb-3">
+                        <input type="password" class="form-control" placeholder="确认新密码">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="twoFactorAuth">
+                            <label class="form-check-label" for="twoFactorAuth">
+                                启用两步验证
+                            </label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary">更新安全设置</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">备份与恢复</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button type="button" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-download"></i> 导出配置
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button type="button" class="btn btn-secondary w-100 mb-2">
+                        <i class="bi bi-upload"></i> 导入配置
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button type="button" class="btn btn-danger w-100">
+                        <i class="bi bi-arrow-counterclockwise"></i> 重置系统
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

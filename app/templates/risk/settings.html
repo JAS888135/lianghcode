@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 全局风险设置 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">全局风险设置</h5>
+            </div>
+            <div class="card-body">
+                <form id="globalRiskForm">
+                    <div class="mb-3">
+                        <label class="form-label">最大持仓金额 (USDT)</label>
+                        <input type="number" class="form-control" name="max_position_value" 
+                               value="{{ global_risk.max_position_value }}" min="0" step="100" required>
+                        <div class="form-text">单个交易对的最大持仓金额</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">每日最大交易次数</label>
+                        <input type="number" class="form-control" name="max_trades_per_day"
+                               value="{{ global_risk.max_trades_per_day }}" min="1" required>
+                        <div class="form-text">每个交易对每天允许的最大交易次数</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">最大杠杆倍数</label>
+                        <input type="number" class="form-control" name="max_leverage"
+                               value="{{ global_risk.max_leverage }}" min="1" max="100" required>
+                        <div class="form-text">合约交易的最大允许杠杆倍数</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">全局止损比例 (%)</label>
+                        <input type="number" class="form-control" name="global_stop_loss"
+                               value="{{ global_risk.global_stop_loss }}" min="0" max="100" step="0.1" required>
+                        <div class="form-text">触发止损的亏损百分比</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">全局止盈比例 (%)</label>
+                        <input type="number" class="form-control" name="global_take_profit"
+                               value="{{ global_risk.global_take_profit }}" min="0" max="1000" step="0.1" required>
+                        <div class="form-text">触发止盈的盈利百分比</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">最大回撤限制 (%)</label>
+                        <input type="number" class="form-control" name="max_drawdown"
+                               value="{{ global_risk.max_drawdown }}" min="0" max="100" step="0.1" required>
+                        <div class="form-text">达到最大回撤限制时暂停交易</div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">保存全局设置</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 交易对风险设置 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">交易对风险设置</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPairModal">
+                    <i class="bi bi-plus"></i> 添加交易对
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>交易对</th>
+                                <th>最大持仓</th>
+                                <th>止损比例</th>
+                                <th>止盈比例</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pair in pair_risks %}
+                            <tr>
+                                <td>{{ pair.symbol }}</td>
+                                <td>{{ pair.max_position }}</td>
+                                <td>{{ pair.stop_loss }}%</td>
+                                <td>{{ pair.take_profit }}%</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1"
+                                            onclick="editPairRisk('{{ pair.symbol }}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            onclick="deletePairRisk('{{ pair.symbol }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加交易对模态框 -->
+<div class="modal fade" id="addPairModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加交易对风险设置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPairForm">
+                    <div class="mb-3">
+                        <label class="form-label">交易对</label>
+                        <select class="form-select" name="symbol" required>
+                            <option value="">选择交易对</option>
+                            {% for pair in trading_pairs %}
+                            <option value="{{ pair }}">{{ pair }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">最大持仓量</label>
+                        <input type="number" class="form-control" name="max_position" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">止损比例 (%)</label>
+                        <input type="number" class="form-control" name="stop_loss" 
+                               min="0" max="100" step="0.1" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">止盈比例 (%)</label>
+                        <input type="number" class="form-control" name="take_profit"
+                               min="0" max="1000" step="0.1" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="savePairRisk()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 保存全局风险设置
+document.getElementById('globalRiskForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const jsonData = {};
+    formData.forEach((value, key) => {
+        jsonData[key] = parseFloat(value);
+    });
+    
+    try {
+        const response = await fetch('/api/risk/global', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('保存失败');
+        }
+        
+        showAlert('全局风险设置已更新', 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+});
+
+// 保存交易对风险设置
+async function savePairRisk() {
+    const form = document.getElementById('addPairForm');
+    const formData = new FormData(form);
+    const jsonData = {};
+    formData.forEach((value, key) => {
+        jsonData[key] = key === 'symbol' ? value : parseFloat(value);
+    });
+    
+    try {
+        const response = await fetch('/api/risk/pair', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('保存失败');
+        }
+        
+        // 关闭模态框并刷新页面
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addPairModal'));
+        modal.hide();
+        location.reload();
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 编辑交易对风险设置
+async function editPairRisk(symbol) {
+    try {
+        const response = await fetch(`/api/risk/pair/${symbol}`);
+        const data = await response.json();
+        
+        // 填充表单
+        const form = document.getElementById('addPairForm');
+        form.querySelector('[name="symbol"]').value = data.symbol;
+        form.querySelector('[name="max_position"]').value = data.max_position;
+        form.querySelector('[name="stop_loss"]').value = data.stop_loss;
+        form.querySelector('[name="take_profit"]').value = data.take_profit;
+        
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('addPairModal'));
+        modal.show();
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 删除交易对风险设置
+async function deletePairRisk(symbol) {
+    if (!confirm(`确定要删除 ${symbol} 的风险设置吗？`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/risk/pair/${symbol}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('删除失败');
+        }
+        
+        location.reload();
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+</script>
+{% endblock %} 

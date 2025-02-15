@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 优化配置 -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">优化配置</h5>
+            </div>
+            <div class="card-body">
+                <form id="optimizeForm" method="POST">
+                    <!-- 策略选择 -->
+                    <div class="mb-3">
+                        <label class="form-label">选择策略</label>
+                        <select class="form-select" name="strategy_id" required>
+                            <option value="">请选择策略</option>
+                            {% for strategy in strategies %}
+                            <option value="{{ strategy.id }}">{{ strategy.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 优化时间范围 -->
+                    <div class="mb-3">
+                        <label class="form-label">优化时间范围</label>
+                        <div class="row">
+                            <div class="col">
+                                <input type="date" class="form-control" name="start_date" required>
+                            </div>
+                            <div class="col">
+                                <input type="date" class="form-control" name="end_date" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 优化目标 -->
+                    <div class="mb-3">
+                        <label class="form-label">优化目标</label>
+                        <select class="form-select" name="objective" required>
+                            <option value="return">总收益率</option>
+                            <option value="sharpe">夏普比率</option>
+                            <option value="sortino">索提诺比率</option>
+                            <option value="max_drawdown">最大回撤</option>
+                        </select>
+                    </div>
+
+                    <!-- 参数范围设置 -->
+                    <div id="parameterRanges">
+                        <h6 class="mt-4">参数范围</h6>
+                        <!-- 动态加载策略参数 -->
+                    </div>
+
+                    <!-- 优化设置 -->
+                    <div class="mb-3">
+                        <label class="form-label">优化方法</label>
+                        <select class="form-select" name="method" required>
+                            <option value="grid">网格搜索</option>
+                            <option value="random">随机搜索</option>
+                            <option value="bayesian">贝叶斯优化</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">最大迭代次数</label>
+                        <input type="number" class="form-control" name="max_iterations" value="100" min="1" required>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            开始优化
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 优化结果 -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">优化结果</h5>
+            </div>
+            <div class="card-body">
+                <!-- 优化进度 -->
+                <div id="optimizationProgress" style="display: none;">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p class="text-center" id="progressText">正在优化...</p>
+                </div>
+
+                <!-- 最优参数 -->
+                <div id="bestParameters" style="display: none;">
+                    <h6>最优参数组合</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>参数</th>
+                                    <th>值</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bestParamsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 性能指标 -->
+                <div id="performanceMetrics" style="display: none;">
+                    <h6 class="mt-4">性能指标</h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">总收益率</h6>
+                                    <h3 class="card-title mb-0" id="totalReturn">--</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">夏普比率</h6>
+                                    <h3 class="card-title mb-0" id="sharpeRatio">--</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">最大回撤</h6>
+                                    <h3 class="card-title mb-0" id="maxDrawdown">--</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-muted">胜率</h6>
+                                    <h3 class="card-title mb-0" id="winRate">--</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 参数分布图 -->
+                <div id="parameterDistribution" style="display: none;">
+                    <h6 class="mt-4">参数分布</h6>
+                    <div class="chart-container">
+                        <canvas id="paramDistChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 优化历史 -->
+                <div id="optimizationHistory" style="display: none;">
+                    <h6 class="mt-4">优化历史</h6>
+                    <div class="chart-container">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let paramDistChart = null;
+let historyChart = null;
+
+// 初始化图表
+function initCharts() {
+    const paramCtx = document.getElementById('paramDistChart').getContext('2d');
+    paramDistChart = new Chart(paramCtx, {
+        type: 'scatter',
+        data: {
+            datasets: []
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '参数分布与性能关系'
+                }
+            }
+        }
+    });
+
+    const historyCtx = document.getElementById('historyChart').getContext('2d');
+    historyChart = new Chart(historyCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '优化目标值',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '优化历史'
+                }
+            }
+        }
+    });
+}
+
+// 更新参数范围表单
+function updateParameterRanges(strategyId) {
+    const parameterRanges = document.getElementById('parameterRanges');
+    
+    // 从API获取策略参数
+    fetch(`/api/strategy/${strategyId}/parameters`)
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            data.parameters.forEach(param => {
+                html += `
+                    <div class="mb-3">
+                        <label class="form-label">${param.name}</label>
+                        <div class="row">
+                            <div class="col">
+                                <input type="number" class="form-control" 
+                                       name="${param.name}_min" 
+                                       placeholder="最小值"
+                                       value="${param.default * 0.5}"
+                                       step="${param.step || 0.1}">
+                            </div>
+                            <div class="col">
+                                <input type="number" class="form-control" 
+                                       name="${param.name}_max" 
+                                       placeholder="最大值"
+                                       value="${param.default * 1.5}"
+                                       step="${param.step || 0.1}">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            parameterRanges.innerHTML = html;
+        });
+}
+
+// 开始优化
+document.getElementById('optimizeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // 显示进度条
+    document.getElementById('optimizationProgress').style.display = 'block';
+    document.getElementById('bestParameters').style.display = 'none';
+    document.getElementById('performanceMetrics').style.display = 'none';
+    document.getElementById('parameterDistribution').style.display = 'none';
+    document.getElementById('optimizationHistory').style.display = 'none';
+    
+    const formData = new FormData(this);
+    const jsonData = {};
+    formData.forEach((value, key) => {
+        jsonData[key] = value;
+    });
+    
+    try {
+        const response = await fetch('/api/strategy/optimize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('优化请求失败');
+        }
+        
+        const data = await response.json();
+        const optimizationId = data.optimization_id;
+        
+        // 开始轮询优化状态
+        pollOptimizationStatus(optimizationId);
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+        document.getElementById('optimizationProgress').style.display = 'none';
+    }
+});
+
+// 轮询优化状态
+async function pollOptimizationStatus(optimizationId) {
+    try {
+        const response = await fetch(`/api/strategy/optimize/${optimizationId}/status`);
+        const data = await response.json();
+        
+        // 更新进度条
+        const progressBar = document.querySelector('.progress-bar');
+        progressBar.style.width = `${data.progress}%`;
+        document.getElementById('progressText').textContent = data.status;
+        
+        if (data.status === 'completed') {
+            // 显示优化结果
+            showOptimizationResults(data.results);
+        } else if (data.status === 'failed') {
+            showAlert('优化失败: ' + data.error, 'danger');
+            document.getElementById('optimizationProgress').style.display = 'none';
+        } else {
+            // 继续轮询
+            setTimeout(() => pollOptimizationStatus(optimizationId), 1000);
+        }
+        
+    } catch (error) {
+        showAlert('获取优化状态失败', 'danger');
+        document.getElementById('optimizationProgress').style.display = 'none';
+    }
+}
+
+// 显示优化结果
+function showOptimizationResults(results) {
+    // 显示最优参数
+    const bestParamsBody = document.getElementById('bestParamsBody');
+    bestParamsBody.innerHTML = '';
+    Object.entries(results.best_parameters).forEach(([param, value]) => {
+        bestParamsBody.innerHTML += `
+            <tr>
+                <td>${param}</td>
+                <td>${value}</td>
+            </tr>
+        `;
+    });
+    
+    // 更新性能指标
+    document.getElementById('totalReturn').textContent = `${(results.metrics.total_return * 100).toFixed(2)}%`;
+    document.getElementById('sharpeRatio').textContent = results.metrics.sharpe_ratio.toFixed(2);
+    document.getElementById('maxDrawdown').textContent = `${(results.metrics.max_drawdown * 100).toFixed(2)}%`;
+    document.getElementById('winRate').textContent = `${(results.metrics.win_rate * 100).toFixed(2)}%`;
+    
+    // 更新图表
+    updateCharts(results);
+    
+    // 显示结果区域
+    document.getElementById('optimizationProgress').style.display = 'none';
+    document.getElementById('bestParameters').style.display = 'block';
+    document.getElementById('performanceMetrics').style.display = 'block';
+    document.getElementById('parameterDistribution').style.display = 'block';
+    document.getElementById('optimizationHistory').style.display = 'block';
+}
+
+// 更新图表
+function updateCharts(results) {
+    // 更新参数分布图
+    paramDistChart.data.datasets = results.parameter_distribution.map(param => ({
+        label: param.name,
+        data: param.points,
+        backgroundColor: param.color
+    }));
+    paramDistChart.update();
+    
+    // 更新优化历史图
+    historyChart.data.labels = results.optimization_history.iterations;
+    historyChart.data.datasets[0].data = results.optimization_history.objectives;
+    historyChart.update();
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initCharts();
+    
+    // 监听策略选择变化
+    document.querySelector('select[name="strategy_id"]').addEventListener('change', function() {
+        if (this.value) {
+            updateParameterRanges(this.value);
+        }
+    });
+});
+</script>
+{% endblock %} 

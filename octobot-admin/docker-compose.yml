@@ -1,0 +1,47 @@
+version: '3'
+
+services:
+  admin:
+    build: .
+    container_name: octobot-admin
+    ports:
+      - "127.0.0.1:5001:5001"
+    volumes:
+      - ./user:/app/user:rw
+      - ./logs:/app/logs:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=Asia/Shanghai
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+      - SECRET_KEY=your-secret-key-here
+      - DATABASE_URL=sqlite:///user/data.db
+      - OCTOBOT_URL=http://octobot:5001
+    depends_on:
+      - octobot
+    restart: unless-stopped
+    networks:
+      - octobot-network
+
+  octobot:
+    image: drakkarsoftware/octobot:stable
+    container_name: octobot
+    ports:
+      - "127.0.0.1:5002:5001"
+    volumes:
+      - ./user:/octobot/user:rw
+      - ./tentacles:/octobot/tentacles:rw
+      - ./logs:/octobot/logs:rw
+    environment:
+      - TENTACLES_REPOSITORY=master
+      - ENABLE_TRADING=true
+      - LANG=zh_CN.UTF-8
+      - LC_ALL=zh_CN.UTF-8
+    restart: unless-stopped
+    networks:
+      - octobot-network
+
+networks:
+  octobot-network:
+    name: octobot-network
+    driver: bridge 

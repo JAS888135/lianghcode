@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">创建策略</h5>
+            </div>
+            <div class="card-body">
+                <form id="strategyForm" class="needs-validation" novalidate>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">策略名称</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="invalid-feedback">
+                            请输入策略名称
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="type" class="form-label">策略类型</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="">选择策略类型</option>
+                            <option value="grid">网格交易</option>
+                            <option value="dca">定投策略</option>
+                            <option value="trend">趋势跟踪</option>
+                            <option value="arbitrage">套利策略</option>
+                            <option value="signal">信号策略</option>
+                        </select>
+                        <div class="invalid-feedback">
+                            请选择策略类型
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="tradingPairs" class="form-label">交易对</label>
+                        <select class="form-select" id="tradingPairs" name="trading_pairs" multiple required>
+                            <optgroup label="USDT 交易对">
+                                <option value="BTC/USDT">BTC/USDT</option>
+                                <option value="ETH/USDT">ETH/USDT</option>
+                                <option value="BNB/USDT">BNB/USDT</option>
+                            </optgroup>
+                            <optgroup label="USDC 交易对">
+                                <option value="BTC/USDC">BTC/USDC</option>
+                                <option value="ETH/USDC">ETH/USDC</option>
+                            </optgroup>
+                        </select>
+                        <div class="invalid-feedback">
+                            请选择至少一个交易对
+                        </div>
+                    </div>
+
+                    <!-- 网格策略配置 -->
+                    <div id="gridConfig" class="strategy-config" style="display: none;">
+                        <h6 class="mb-3">网格策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">上边界价格</label>
+                                    <input type="number" class="form-control" name="grid_upper_price" step="0.000001">
+                                    <div class="invalid-feedback">
+                                        请输入上边界价格
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">下边界价格</label>
+                                    <input type="number" class="form-control" name="grid_lower_price" step="0.000001">
+                                    <div class="invalid-feedback">
+                                        请输入下边界价格
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">网格数量</label>
+                                    <input type="number" class="form-control" name="grid_count" min="2">
+                                    <div class="invalid-feedback">
+                                        请输入网格数量（至少2个）
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">投资金额</label>
+                                    <input type="number" class="form-control" name="grid_investment" step="0.01">
+                                    <div class="invalid-feedback">
+                                        请输入投资金额
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 定投策略配置 -->
+                    <div id="dcaConfig" class="strategy-config" style="display: none;">
+                        <h6 class="mb-3">定投策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">定投金额</label>
+                                    <input type="number" class="form-control" name="dca_amount" step="0.01">
+                                    <div class="invalid-feedback">
+                                        请输入定投金额
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">定投间隔(小时)</label>
+                                    <input type="number" class="form-control" name="dca_interval" min="1">
+                                    <div class="invalid-feedback">
+                                        请输入定投间隔
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 趋势策略配置 -->
+                    <div id="trendConfig" class="strategy-config" style="display: none;">
+                        <h6 class="mb-3">趋势策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">MA周期</label>
+                                    <input type="number" class="form-control" name="trend_ma_period" min="1">
+                                    <div class="invalid-feedback">
+                                        请输入MA周期
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">RSI周期</label>
+                                    <input type="number" class="form-control" name="trend_rsi_period" min="1">
+                                    <div class="invalid-feedback">
+                                        请输入RSI周期
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 套利策略配置 -->
+                    <div id="arbitrageConfig" class="strategy-config" style="display: none;">
+                        <h6 class="mb-3">套利策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">最小价差比例(%)</label>
+                                    <input type="number" class="form-control" name="arbitrage_min_spread" step="0.01">
+                                    <div class="invalid-feedback">
+                                        请输入最小价差比例
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">单次交易金额</label>
+                                    <input type="number" class="form-control" name="arbitrage_amount" step="0.01">
+                                    <div class="invalid-feedback">
+                                        请输入单次交易金额
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 信号策略配置 -->
+                    <div id="signalConfig" class="strategy-config" style="display: none;">
+                        <h6 class="mb-3">信号策略配置</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">信号源</label>
+                                    <select class="form-select" name="signal_source">
+                                        <option value="tradingview">TradingView</option>
+                                        <option value="webhook">Webhook</option>
+                                        <option value="api">API</option>
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        请选择信号源
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">单次交易金额</label>
+                                    <input type="number" class="form-control" name="signal_amount" step="0.01">
+                                    <div class="invalid-feedback">
+                                        请输入单次交易金额
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 风险控制 -->
+                    <div class="mb-3">
+                        <h6 class="mb-3">风险控制</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">止损比例(%)</label>
+                                    <input type="number" class="form-control" name="stop_loss" step="0.1">
+                                    <div class="invalid-feedback">
+                                        请输入止损比例
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">止盈比例(%)</label>
+                                    <input type="number" class="form-control" name="take_profit" step="0.1">
+                                    <div class="invalid-feedback">
+                                        请输入止盈比例
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">最大持仓量</label>
+                                    <input type="number" class="form-control" name="max_position" step="0.000001">
+                                    <div class="invalid-feedback">
+                                        请输入最大持仓量
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">每日最大交易次数</label>
+                                    <input type="number" class="form-control" name="max_trades_per_day" min="1">
+                                    <div class="invalid-feedback">
+                                        请输入每日最大交易次数
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" onclick="window.history.back()">取消</button>
+                        <button type="submit" class="btn btn-primary">创建策略</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 显示策略配置面板
+function showStrategyConfig(type) {
+    // 隐藏所有配置面板
+    document.querySelectorAll('.strategy-config').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // 显示选中的配置面板
+    const configPanel = document.getElementById(`${type}Config`);
+    if (configPanel) {
+        configPanel.style.display = 'block';
+    }
+}
+
+// 获取表单数据
+function getFormData() {
+    const form = document.getElementById('strategyForm');
+    const formData = new FormData(form);
+    const data = {
+        name: formData.get('name'),
+        type: formData.get('type'),
+        config: {}
+    };
+    
+    // 获取交易对
+    data.config.trading_pairs = Array.from(formData.getAll('trading_pairs'));
+    
+    // 根据策略类型获取配置
+    switch (data.type) {
+        case 'grid':
+            data.config = {
+                ...data.config,
+                upper_price: parseFloat(formData.get('grid_upper_price')),
+                lower_price: parseFloat(formData.get('grid_lower_price')),
+                grid_count: parseInt(formData.get('grid_count')),
+                investment: parseFloat(formData.get('grid_investment'))
+            };
+            break;
+            
+        case 'dca':
+            data.config = {
+                ...data.config,
+                amount: parseFloat(formData.get('dca_amount')),
+                interval: parseInt(formData.get('dca_interval'))
+            };
+            break;
+            
+        case 'trend':
+            data.config = {
+                ...data.config,
+                ma_period: parseInt(formData.get('trend_ma_period')),
+                rsi_period: parseInt(formData.get('trend_rsi_period'))
+            };
+            break;
+            
+        case 'arbitrage':
+            data.config = {
+                ...data.config,
+                min_spread: parseFloat(formData.get('arbitrage_min_spread')),
+                amount: parseFloat(formData.get('arbitrage_amount'))
+            };
+            break;
+            
+        case 'signal':
+            data.config = {
+                ...data.config,
+                signal_source: formData.get('signal_source'),
+                amount: parseFloat(formData.get('signal_amount'))
+            };
+            break;
+    }
+    
+    // 添加风险控制配置
+    data.config.risk_control = {
+        stop_loss: parseFloat(formData.get('stop_loss')),
+        take_profit: parseFloat(formData.get('take_profit')),
+        max_position: parseFloat(formData.get('max_position')),
+        max_trades_per_day: parseInt(formData.get('max_trades_per_day'))
+    };
+    
+    return data;
+}
+
+// 表单提交
+async function submitForm(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    if (!form.checkValidity()) {
+        event.stopPropagation();
+        form.classList.add('was-validated');
+        return;
+    }
+    
+    try {
+        const data = getFormData();
+        const response = await fetchAPI('/strategy/create', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        
+        if (response.success) {
+            showAlert('策略创建成功', 'success');
+            window.location.href = '/strategy/list';
+        } else {
+            throw new Error(response.message || '创建策略失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('strategyForm');
+    const typeSelect = document.getElementById('type');
+    
+    // 策略类型切换时显示对应的配置面板
+    typeSelect.addEventListener('change', function() {
+        showStrategyConfig(this.value);
+    });
+    
+    // 表单提交
+    form.addEventListener('submit', submitForm);
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,52 @@
+{
+    "config": {
+        "crypto-currencies": {
+            "Bitcoin": {
+                "enabled": true,
+                "pairs": [
+                    "BTC/USDT"
+                ]
+            }
+        },
+        "exchanges": {
+            "binance": {
+                "enabled": true,
+                "exchange-type": "spot"
+            }
+        },
+        "trader": {
+            "enabled": true,
+            "load-trade-history": false
+        },
+        "trader-simulator": {
+            "enabled": false,
+            "fees": {
+                "maker": 0,
+                "taker": 0
+            },
+            "starting-portfolio": {
+                "BTC": 0,
+                "USDT": 0
+            }
+        },
+        "trading": {
+            "reference-market": "USDT",
+            "risk": 0
+        }
+    },
+    "profile": {
+        "auto_update": false,
+        "avatar": "default_profile.png",
+        "complexity": 1,
+        "description": "Simple DCA (Dollar cost averaging) is a profile that can help you lower the amount you pay for investments and minimize risk. Instead of purchasing investments at a single price point, with dollar cost averaging you buy in smaller amounts at regular intervals, regardless of price. Over the long term, dollar cost averaging can help lower your investment costs and boost your returns.",
+        "extra_backtesting_time_frames": [],
+        "id": "simple_dca",
+        "imported": false,
+        "name": "Simple DCA",
+        "origin_url": null,
+        "read_only": true,
+        "risk": 1,
+        "slug": "",
+        "type": "live"
+    }
+}

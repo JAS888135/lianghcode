@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">交易策略配置</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">网格交易策略</h5>
+                                <p class="card-text">在价格区间内自动买入和卖出，赚取价差收益。</p>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="gridStrategy">
+                                    <label class="form-check-label" for="gridStrategy">启用</label>
+                                </div>
+                                <button class="btn btn-primary mt-2" onclick="alert('配置已保存')">配置参数</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">定投策略</h5>
+                                <p class="card-text">按固定时间间隔自动买入指定数量的币种。</p>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="dcaStrategy">
+                                    <label class="form-check-label" for="dcaStrategy">启用</label>
+                                </div>
+                                <button class="btn btn-primary mt-2" onclick="alert('配置已保存')">配置参数</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">趋势跟踪策略</h5>
+                                <p class="card-text">根据市场趋势自动进行买卖操作。</p>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="trendStrategy">
+                                    <label class="form-check-label" for="trendStrategy">启用</label>
+                                </div>
+                                <button class="btn btn-primary mt-2" onclick="alert('配置已保存')">配置参数</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">套利策略</h5>
+                                <p class="card-text">在不同交易所间寻找价差机会进行套利。</p>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="arbitrageStrategy">
+                                    <label class="form-check-label" for="arbitrageStrategy">启用</label>
+                                </div>
+                                <button class="btn btn-primary mt-2" onclick="alert('配置已保存')">配置参数</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">信号策略</h5>
+                                <p class="card-text">根据TradingView或其他平台的信号进行交易。</p>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="signalStrategy">
+                                    <label class="form-check-label" for="signalStrategy">启用</label>
+                                </div>
+                                <button class="btn btn-primary mt-2" onclick="alert('配置已保存')">配置参数</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">技术指标配置</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="rsiIndicator">
+                            <label class="form-check-label" for="rsiIndicator">RSI指标</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="macdIndicator">
+                            <label class="form-check-label" for="macdIndicator">MACD指标</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="bollingerIndicator">
+                            <label class="form-check-label" for="bollingerIndicator">布林带指标</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="maIndicator">
+                            <label class="form-check-label" for="maIndicator">移动平均线</label>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-3" onclick="alert('指标配置已保存')">保存指标配置</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

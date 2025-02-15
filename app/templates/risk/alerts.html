@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 预警规则管理 -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">预警规则管理</h5>
+                <div>
+                    <div class="btn-group me-2">
+                        <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="bi bi-download"></i> 导出
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="exportRules('json')">JSON格式</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportRules('csv')">CSV格式</a></li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn btn-outline-success me-2" onclick="document.getElementById('importFile').click()">
+                        <i class="bi bi-upload"></i> 导入
+                    </button>
+                    <input type="file" id="importFile" style="display: none" accept=".json,.csv" onchange="importRules(this)">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRuleModal">
+                        <i class="bi bi-plus"></i> 添加规则
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>规则名称</th>
+                                <th>交易对</th>
+                                <th>类型</th>
+                                <th>条件</th>
+                                <th>阈值</th>
+                                <th>时间周期</th>
+                                <th>通知方式</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rulesList">
+                            <!-- 动态加载规则列表 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预警历史记录 -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">预警历史</h5>
+            </div>
+            <div class="card-body">
+                <!-- 筛选器 -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <select class="form-select" id="symbolFilter">
+                            <option value="">所有交易对</option>
+                            {% for pair in trading_pairs %}
+                            <option value="{{ pair }}">{{ pair }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="levelFilter">
+                            <option value="">所有级别</option>
+                            <option value="info">信息</option>
+                            <option value="warning">警告</option>
+                            <option value="danger">危险</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="daysFilter">
+                            <option value="1">最近1天</option>
+                            <option value="7" selected>最近7天</option>
+                            <option value="30">最近30天</option>
+                            <option value="90">最近90天</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-primary w-100" onclick="loadAlertHistory()">
+                            <i class="bi bi-search"></i> 查询
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 预警列表 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>级别</th>
+                                <th>交易对</th>
+                                <th>标题</th>
+                                <th>消息</th>
+                                <th>触发值</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alertsList">
+                            <!-- 动态加载预警历史 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑规则模态框 -->
+<div class="modal fade" id="addRuleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ruleModalTitle">添加预警规则</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="ruleForm">
+                    <input type="hidden" id="ruleId">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">规则名称</label>
+                            <input type="text" class="form-control" id="ruleName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">交易对</label>
+                            <select class="form-select" id="ruleSymbol">
+                                <option value="">所有交易对</option>
+                                {% for pair in trading_pairs %}
+                                <option value="{{ pair }}">{{ pair }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">预警类型</label>
+                            <select class="form-control" id="ruleType" required>
+                                <option value="price">价格</option>
+                                <option value="volume">成交量</option>
+                                <option value="volatility">波动率</option>
+                                <option value="drawdown">回撤</option>
+                                <option value="rsi">RSI</option>
+                                <option value="macd">MACD</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">条件</label>
+                            <select class="form-control" id="ruleCondition" required>
+                                <option value=">">&gt; 大于</option>
+                                <option value="<">&lt; 小于</option>
+                                <option value=">=">&gt;= 大于等于</option>
+                                <option value="<=">&lt;= 小于等于</option>
+                                <option value="==">= 等于</option>
+                                <option value="between">区间</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">时间周期</label>
+                            <select class="form-control" id="ruleTimeframe">
+                                <option value="1m">1分钟</option>
+                                <option value="5m">5分钟</option>
+                                <option value="15m">15分钟</option>
+                                <option value="1h">1小时</option>
+                                <option value="4h">4小时</option>
+                                <option value="1d">1天</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">阈值</label>
+                            <input type="number" class="form-control" id="ruleThreshold" required>
+                        </div>
+                        <div class="col-md-6" id="secondaryThresholdContainer" style="display: none;">
+                            <label class="form-label">第二阈值</label>
+                            <input type="number" class="form-control" id="ruleThresholdSecondary">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">规则描述</label>
+                        <textarea class="form-control" id="ruleDescription" rows="2"></textarea>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ruleActive" checked>
+                                <label class="form-check-label">启用规则</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notifyEmail" checked>
+                                <label class="form-check-label">邮件通知</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notifyTelegram">
+                                <label class="form-check-label">Telegram通知</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveRule()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ruleModal = null;
+let currentRuleId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    ruleModal = new bootstrap.Modal(document.getElementById('addRuleModal'));
+    
+    // 加载预警规则列表
+    loadRules();
+    // 加载预警历史
+    loadAlertHistory();
+    
+    // 监听条件选择变化
+    document.getElementById('ruleCondition').addEventListener('change', function() {
+        const secondaryContainer = document.getElementById('secondaryThresholdContainer');
+        secondaryContainer.style.display = this.value === 'between' ? 'block' : 'none';
+    });
+});
+
+// 加载预警规则列表
+async function loadRules() {
+    try {
+        const response = await fetch('/api/risk/alert-rules');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const tbody = document.getElementById('rulesList');
+            tbody.innerHTML = '';
+            
+            data.data.forEach(rule => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${rule.name}</td>
+                    <td>${rule.symbol || '所有'}</td>
+                    <td>${formatRuleType(rule.type)}</td>
+                    <td>${formatCondition(rule.condition, rule.threshold, rule.threshold_secondary)}</td>
+                    <td>${rule.threshold}${rule.threshold_secondary ? ' - ' + rule.threshold_secondary : ''}</td>
+                    <td>${rule.timeframe || '--'}</td>
+                    <td>
+                        ${rule.notify_email ? '<i class="bi bi-envelope"></i> ' : ''}
+                        ${rule.notify_telegram ? '<i class="bi bi-telegram"></i>' : ''}
+                    </td>
+                    <td>
+                        <span class="badge bg-${rule.is_active ? 'success' : 'secondary'}">
+                            ${rule.is_active ? '启用' : '禁用'}
+                        </span>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary me-1" 
+                                onclick="editRule(${rule.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-${rule.is_active ? 'warning' : 'success'} me-1"
+                                onclick="toggleRule(${rule.id})">
+                            <i class="bi bi-${rule.is_active ? 'pause' : 'play'}"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="deleteRule(${rule.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    } catch (error) {
+        showAlert('加载预警规则失败', 'danger');
+    }
+}
+
+// 加载预警历史
+async function loadAlertHistory() {
+    try {
+        const symbol = document.getElementById('symbolFilter').value;
+        const level = document.getElementById('levelFilter').value;
+        const days = document.getElementById('daysFilter').value;
+        
+        const params = new URLSearchParams({
+            days: days
+        });
+        if (symbol) params.append('symbol', symbol);
+        if (level) params.append('level', level);
+        
+        const response = await fetch(`/api/risk/alert-history?${params}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const tbody = document.getElementById('alertsList');
+            tbody.innerHTML = '';
+            
+            data.data.forEach(alert => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${formatDateTime(alert.created_at)}</td>
+                    <td>
+                        <span class="badge bg-${getLevelClass(alert.level)}">
+                            ${formatLevel(alert.level)}
+                        </span>
+                    </td>
+                    <td>${alert.symbol}</td>
+                    <td>${alert.title}</td>
+                    <td>${alert.message}</td>
+                    <td>${formatNumber(alert.value)}</td>
+                    <td>
+                        <span class="badge bg-${alert.is_processed ? 'success' : 'warning'}">
+                            ${alert.is_processed ? '已处理' : '未处理'}
+                        </span>
+                    </td>
+                    <td>
+                        ${!alert.is_processed ? `
+                            <button type="button" class="btn btn-sm btn-outline-success"
+                                    onclick="processAlert(${alert.id})">
+                                <i class="bi bi-check"></i> 标记已处理
+                            </button>
+                        ` : ''}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    } catch (error) {
+        showAlert('加载预警历史失败', 'danger');
+    }
+}
+
+// 保存规则
+async function saveRule() {
+    try {
+        const data = {
+            name: document.getElementById('ruleName').value,
+            symbol: document.getElementById('ruleSymbol').value,
+            type: document.getElementById('ruleType').value,
+            condition: document.getElementById('ruleCondition').value,
+            threshold: parseFloat(document.getElementById('ruleThreshold').value),
+            timeframe: document.getElementById('ruleTimeframe').value,
+            description: document.getElementById('ruleDescription').value,
+            is_active: document.getElementById('ruleActive').checked,
+            notify_email: document.getElementById('notifyEmail').checked,
+            notify_telegram: document.getElementById('notifyTelegram').checked
+        };
+        
+        if (data.condition === 'between') {
+            data.threshold_secondary = parseFloat(document.getElementById('ruleThresholdSecondary').value);
+        }
+        
+        const url = currentRuleId ? 
+            `/api/risk/alert-rules/${currentRuleId}` : 
+            '/api/risk/alert-rules';
+            
+        const method = currentRuleId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showAlert(currentRuleId ? '预警规则已更新' : '预警规则已创建', 'success');
+            ruleModal.hide();
+            loadRules();
+        } else {
+            throw new Error(result.message);
+        }
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 编辑规则
+async function editRule(ruleId) {
+    try {
+        const response = await fetch(`/api/risk/alert-rules/${ruleId}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            currentRuleId = ruleId;
+            document.getElementById('ruleModalTitle').textContent = '编辑预警规则';
+            
+            // 填充表单
+            document.getElementById('ruleName').value = data.name;
+            document.getElementById('ruleSymbol').value = data.symbol || '';
+            document.getElementById('ruleType').value = data.type;
+            document.getElementById('ruleCondition').value = data.condition;
+            document.getElementById('ruleThreshold').value = data.threshold;
+            document.getElementById('ruleTimeframe').value = data.timeframe;
+            document.getElementById('ruleDescription').value = data.description;
+            document.getElementById('ruleActive').checked = data.is_active;
+            document.getElementById('notifyEmail').checked = data.notify_email;
+            document.getElementById('notifyTelegram').checked = data.notify_telegram;
+            
+            // 处理区间条件
+            const secondaryContainer = document.getElementById('secondaryThresholdContainer');
+            if (data.condition === 'between') {
+                secondaryContainer.style.display = 'block';
+                document.getElementById('ruleThresholdSecondary').value = data.threshold_secondary;
+            } else {
+                secondaryContainer.style.display = 'none';
+            }
+            
+            ruleModal.show();
+        }
+    } catch (error) {
+        showAlert('加载规则详情失败', 'danger');
+    }
+}
+
+// 切换规则状态
+async function toggleRule(ruleId) {
+    if (!confirm('确定要切换此规则的状态吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/risk/alert-rules/${ruleId}/toggle`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showAlert(data.message, 'success');
+            loadRules();
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 删除规则
+async function deleteRule(ruleId) {
+    if (!confirm('确定要删除此预警规则吗？此操作不可恢复。')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/risk/alert-rules/${ruleId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showAlert('预警规则已删除', 'success');
+            loadRules();
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 处理预警
+async function processAlert(alertId) {
+    try {
+        const response = await fetch(`/api/risk/alert-history/${alertId}/process`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showAlert('预警已标记为已处理', 'success');
+            loadAlertHistory();
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 格式化规则类型
+function formatRuleType(type) {
+    const types = {
+        'price': '价格',
+        'volume': '成交量',
+        'volatility': '波动率',
+        'drawdown': '回撤',
+        'rsi': 'RSI',
+        'macd': 'MACD'
+    };
+    return types[type] || type;
+}
+
+// 格式化条件
+function formatCondition(condition, threshold, threshold_secondary) {
+    const conditions = {
+        '>': '大于',
+        '<': '小于',
+        '>=': '大于等于',
+        '<=': '小于等于',
+        '==': '等于',
+        'between': '介于'
+    };
+    return conditions[condition] || condition;
+}
+
+// 获取预警级别样式
+function getLevelClass(level) {
+    const classes = {
+        'info': 'info',
+        'warning': 'warning',
+        'danger': 'danger'
+    };
+    return classes[level] || 'secondary';
+}
+
+// 格式化预警级别
+function formatLevel(level) {
+    const levels = {
+        'info': '信息',
+        'warning': '警告',
+        'danger': '危险'
+    };
+    return levels[level] || level;
+}
+
+// 导出预警规则
+function exportRules(format) {
+    window.location.href = `/api/risk/alert-rules/export?format=${format}`;
+}
+
+// 导入预警规则
+async function importRules(input) {
+    try {
+        if (!input.files || !input.files[0]) {
+            return;
+        }
+        
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/risk/alert-rules/import', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showAlert(data.message, 'success');
+            loadRules();
+        } else {
+            throw new Error(data.message);
+        }
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    } finally {
+        input.value = '';  // 清除文件选择
+    }
+}
+</script>
+{% endblock %} 

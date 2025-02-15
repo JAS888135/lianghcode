@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 交易区 -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">手动交易</h5>
+            </div>
+            <div class="card-body">
+                <form id="tradeForm" method="POST" action="{{ url_for('manual_trade') }}">
+                    <!-- 交易对选择 -->
+                    <div class="mb-3">
+                        <label for="symbol" class="form-label">交易对</label>
+                        <select class="form-select" id="symbol" name="symbol" required>
+                            <optgroup label="USDT 交易对">
+                                {% for pair in trading_pairs.USDT %}
+                                <option value="{{ pair }}">{{ pair }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="USDC 交易对">
+                                {% for pair in trading_pairs.USDC %}
+                                <option value="{{ pair }}">{{ pair }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="BTC 交易对">
+                                {% for pair in trading_pairs.BTC %}
+                                <option value="{{ pair }}">{{ pair }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <!-- 交易类型 -->
+                    <div class="mb-3">
+                        <label class="form-label">交易类型</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="trade_type" id="spot" value="spot" checked>
+                            <label class="btn btn-outline-primary" for="spot">现货交易</label>
+                            <input type="radio" class="btn-check" name="trade_type" id="futures" value="futures">
+                            <label class="btn btn-outline-primary" for="futures">合约交易</label>
+                        </div>
+                    </div>
+
+                    <!-- 合约设置 -->
+                    <div id="futuresSettings" class="mb-3" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="leverage" class="form-label">杠杆倍数</label>
+                                <input type="number" class="form-control" id="leverage" name="leverage" min="1" max="100" value="1">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="margin_type" class="form-label">保证金模式</label>
+                                <select class="form-select" id="margin_type" name="margin_type">
+                                    <option value="isolated">逐仓</option>
+                                    <option value="cross">全仓</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 买卖方向 -->
+                    <div class="mb-3">
+                        <label class="form-label">交易方向</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="side" id="buy" value="buy" checked>
+                            <label class="btn btn-outline-success" for="buy">买入</label>
+                            <input type="radio" class="btn-check" name="side" id="sell" value="sell">
+                            <label class="btn btn-outline-danger" for="sell">卖出</label>
+                        </div>
+                    </div>
+
+                    <!-- 订单类型 -->
+                    <div class="mb-3">
+                        <label class="form-label">订单类型</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="order_type" id="market" value="market" checked>
+                            <label class="btn btn-outline-primary" for="market">市价单</label>
+                            <input type="radio" class="btn-check" name="order_type" id="limit" value="limit">
+                            <label class="btn btn-outline-primary" for="limit">限价单</label>
+                        </div>
+                    </div>
+
+                    <!-- 价格和数量 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3" id="priceField" style="display: none;">
+                                <label for="price" class="form-label">价格</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="price" name="price" step="0.000001">
+                                    <span class="input-group-text quote-currency">USDT</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="amount" class="form-label">数量</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="amount" name="amount" step="0.000001" required>
+                                    <span class="input-group-text base-currency">BTC</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 高级选项 -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="showAdvanced">
+                            <label class="form-check-label" for="showAdvanced">
+                                显示高级选项
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="advancedOptions" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="stop_loss" class="form-label">止损价格</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="stop_loss" name="stop_loss" step="0.000001">
+                                        <span class="input-group-text quote-currency">USDT</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="take_profit" class="form-label">止盈价格</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="take_profit" name="take_profit" step="0.000001">
+                                        <span class="input-group-text quote-currency">USDT</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">提交订单</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 市场信息 -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">市场信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">最新价格</label>
+                    <h3 class="mb-0" id="currentPrice">--</h3>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">24h涨跌幅</label>
+                    <h4 class="mb-0" id="priceChange">--</h4>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">24h成交量</label>
+                    <h4 class="mb-0" id="volume">--</h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- 账户信息 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">账户信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">可用余额</label>
+                    <h4 class="mb-0" id="availableBalance">--</h4>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">冻结余额</label>
+                    <h4 class="mb-0" id="frozenBalance">--</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 订单确认模态框 -->
+<div class="modal fade" id="orderConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认订单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <strong>交易对：</strong>
+                    <span id="confirmSymbol"></span>
+                </div>
+                <div class="mb-3">
+                    <strong>方向：</strong>
+                    <span id="confirmSide"></span>
+                </div>
+                <div class="mb-3">
+                    <strong>类型：</strong>
+                    <span id="confirmType"></span>
+                </div>
+                <div class="mb-3">
+                    <strong>价格：</strong>
+                    <span id="confirmPrice"></span>
+                </div>
+                <div class="mb-3">
+                    <strong>数量：</strong>
+                    <span id="confirmAmount"></span>
+                </div>
+                <div class="mb-3">
+                    <strong>总金额：</strong>
+                    <span id="confirmTotal"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmOrder">确认下单</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let lastPrice = 0;
+let updateInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tradeForm = document.getElementById('tradeForm');
+    const symbolSelect = document.getElementById('symbol');
+    const tradeTypeInputs = document.getElementsByName('trade_type');
+    const futuresSettings = document.getElementById('futuresSettings');
+    const orderTypeInputs = document.getElementsByName('order_type');
+    const priceField = document.getElementById('priceField');
+    const showAdvancedCheckbox = document.getElementById('showAdvanced');
+    const advancedOptions = document.getElementById('advancedOptions');
+    const priceInput = document.getElementById('price');
+    const amountInput = document.getElementById('amount');
+    
+    // 更新货币单位显示
+    function updateCurrencyLabels() {
+        const [base, quote] = symbolSelect.value.split('/');
+        document.querySelectorAll('.base-currency').forEach(el => el.textContent = base);
+        document.querySelectorAll('.quote-currency').forEach(el => el.textContent = quote);
+    }
+
+    // 更新市场信息
+    async function updateMarketInfo() {
+        try {
+            const data = await fetchAPI(`/api/market_info/${symbolSelect.value}`);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            lastPrice = data.price;
+            document.getElementById('currentPrice').textContent = `${formatNumber(data.price)} ${symbolSelect.value.split('/')[1]}`;
+            document.getElementById('priceChange').textContent = formatPriceChange(data.change);
+            document.getElementById('priceChange').className = data.change >= 0 ? 'text-success' : 'text-danger';
+            document.getElementById('volume').textContent = data.volume;
+            
+            // 如果是限价单，自动填充当前价格
+            if (document.getElementById('limit').checked && !priceInput.value) {
+                priceInput.value = data.price;
+            }
+        } catch (error) {
+            console.error('更新市场信息失败:', error);
+            showAlert('更新市场信息失败', 'danger');
+        }
+    }
+
+    // 更新账户信息
+    async function updateAccountInfo() {
+        try {
+            const data = await fetchAPI('/api/account');
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            document.getElementById('availableBalance').textContent = 
+                `${formatNumber(data.available_balance)} USDT`;
+            document.getElementById('frozenBalance').textContent = 
+                `${formatNumber(data.frozen_balance)} USDT`;
+        } catch (error) {
+            console.error('更新账户信息失败:', error);
+            showAlert('更新账户信息失败', 'danger');
+        }
+    }
+
+    // 验证订单
+    function validateOrder() {
+        const amount = parseFloat(amountInput.value);
+        if (!amount || amount <= 0) {
+            showAlert('请输入有效的交易数量', 'danger');
+            return false;
+        }
+
+        if (document.getElementById('limit').checked) {
+            const price = parseFloat(priceInput.value);
+            if (!price || price <= 0) {
+                showAlert('请输入有效的价格', 'danger');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // 显示订单确认
+    function showOrderConfirm() {
+        const modal = new bootstrap.Modal(document.getElementById('orderConfirmModal'));
+        const side = document.querySelector('input[name="side"]:checked').value;
+        const orderType = document.querySelector('input[name="order_type"]:checked').value;
+        const price = orderType === 'market' ? lastPrice : parseFloat(priceInput.value);
+        const amount = parseFloat(amountInput.value);
+        const total = price * amount;
+
+        document.getElementById('confirmSymbol').textContent = symbolSelect.value;
+        document.getElementById('confirmSide').textContent = side === 'buy' ? '买入' : '卖出';
+        document.getElementById('confirmType').textContent = orderType === 'market' ? '市价' : '限价';
+        document.getElementById('confirmPrice').textContent = `${formatNumber(price)} ${symbolSelect.value.split('/')[1]}`;
+        document.getElementById('confirmAmount').textContent = `${formatNumber(amount)} ${symbolSelect.value.split('/')[0]}`;
+        document.getElementById('confirmTotal').textContent = `${formatNumber(total)} ${symbolSelect.value.split('/')[1]}`;
+
+        modal.show();
+    }
+
+    // 提交订单
+    async function submitOrder() {
+        try {
+            const orderData = {
+                symbol: symbolSelect.value,
+                side: document.querySelector('input[name="side"]:checked').value,
+                order_type: document.querySelector('input[name="order_type"]:checked').value,
+                amount: parseFloat(amountInput.value),
+                trade_type: document.querySelector('input[name="trade_type"]:checked').value
+            };
+
+            if (orderData.order_type === 'limit') {
+                orderData.price = parseFloat(priceInput.value);
+            }
+
+            if (orderData.trade_type === 'futures') {
+                orderData.leverage = parseInt(document.getElementById('leverage').value);
+                orderData.margin_type = document.getElementById('margin_type').value;
+            }
+
+            const stopLoss = document.getElementById('stop_loss').value;
+            const takeProfit = document.getElementById('take_profit').value;
+            if (stopLoss) orderData.stop_loss = parseFloat(stopLoss);
+            if (takeProfit) orderData.take_profit = parseFloat(takeProfit);
+
+            const response = await fetchAPI('/api/place_order', {
+                method: 'POST',
+                body: JSON.stringify(orderData)
+            });
+
+            if (response.success) {
+                showAlert('订单提交成功', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('orderConfirmModal')).hide();
+                updateAccountInfo();
+            } else {
+                throw new Error(response.message || '订单提交失败');
+            }
+        } catch (error) {
+            console.error('提交订单失败:', error);
+            showAlert(error.message || '订单提交失败', 'danger');
+        }
+    }
+
+    // 事件监听器
+    symbolSelect.addEventListener('change', () => {
+        updateCurrencyLabels();
+        updateMarketInfo();
+    });
+
+    tradeTypeInputs.forEach(input => {
+        input.addEventListener('change', () => {
+            futuresSettings.style.display = 
+                document.getElementById('futures').checked ? 'block' : 'none';
+        });
+    });
+
+    orderTypeInputs.forEach(input => {
+        input.addEventListener('change', () => {
+            priceField.style.display = 
+                document.getElementById('limit').checked ? 'block' : 'none';
+        });
+    });
+
+    showAdvancedCheckbox.addEventListener('change', () => {
+        advancedOptions.style.display = showAdvancedCheckbox.checked ? 'block' : 'none';
+    });
+
+    tradeForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (validateOrder()) {
+            showOrderConfirm();
+        }
+    });
+
+    document.getElementById('confirmOrder').addEventListener('click', submitOrder);
+
+    // 初始化
+    updateCurrencyLabels();
+    updateMarketInfo();
+    updateAccountInfo();
+
+    // 设置定时更新
+    updateInterval = setInterval(() => {
+        updateMarketInfo();
+        updateAccountInfo();
+    }, 3000);
+});
+
+// 页面卸载时清除定时器
+window.addEventListener('beforeunload', () => {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+</script>
+{% endblock %} 

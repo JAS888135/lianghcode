@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- 策略统计 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">总策略数</h6>
+                        <h3 class="card-title mb-0">{{ strategies|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">运行中策略</h6>
+                        <h3 class="card-title mb-0">{{ strategies|selectattr('status', 'equalto', 'active')|list|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">盈利策略</h6>
+                        <h3 class="card-title mb-0 text-success">{{ strategies|selectattr('performance.total_profit', '>', 0)|list|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">亏损策略</h6>
+                        <h3 class="card-title mb-0 text-danger">{{ strategies|selectattr('performance.total_profit', '<', 0)|list|length }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 策略列表 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">策略列表</h5>
+                <div class="btn-group">
+                    <a href="{{ url_for('strategy.create') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> 创建策略
+                    </a>
+                    <a href="{{ url_for('strategy.backtest') }}" class="btn btn-secondary">
+                        <i class="bi bi-graph-up"></i> 策略回测
+                    </a>
+                    <a href="{{ url_for('strategy.optimize') }}" class="btn btn-info">
+                        <i class="bi bi-gear"></i> 策略优化
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>策略名称</th>
+                                <th>类型</th>
+                                <th>状态</th>
+                                <th>运行时间</th>
+                                <th>总收益率</th>
+                                <th>夏普比率</th>
+                                <th>最大回撤</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for strategy in strategies %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('strategy.manage_strategy', strategy_id=strategy.id) }}">
+                                        {{ strategy.name }}
+                                    </a>
+                                </td>
+                                <td>{{ strategy.type }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if strategy.status == 'active' else 'secondary' }}">
+                                        {{ '运行中' if strategy.status == 'active' else '已停止' }}
+                                    </span>
+                                </td>
+                                <td>{{ strategy.performance.running_time if strategy.status == 'active' else '--' }}</td>
+                                <td class="{{ 'text-success' if strategy.performance.total_return > 0 else 'text-danger' if strategy.performance.total_return < 0 else '' }}">
+                                    {{ '%+.2f%%'|format(strategy.performance.total_return) if strategy.performance.total_return else '--' }}
+                                </td>
+                                <td>{{ '%.2f'|format(strategy.performance.sharpe_ratio) if strategy.performance.sharpe_ratio else '--' }}</td>
+                                <td class="text-danger">
+                                    {{ '%.2f%%'|format(strategy.performance.max_drawdown) if strategy.performance.max_drawdown else '--' }}
+                                </td>
+                                <td>
+                                    {% if strategy.status == 'active' %}
+                                    <button class="btn btn-danger btn-sm" onclick="stopStrategy({{ strategy.id }})">
+                                        <i class="bi bi-stop-circle"></i> 停止
+                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-success btn-sm" onclick="startStrategy({{ strategy.id }})">
+                                        <i class="bi bi-play-circle"></i> 启动
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-primary btn-sm" onclick="editStrategy({{ strategy.id }})">
+                                        <i class="bi bi-gear"></i> 配置
+                                    </button>
+                                    <button class="btn btn-info btn-sm" onclick="viewPerformance({{ strategy.id }})">
+                                        <i class="bi bi-graph-up"></i> 绩效
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteStrategy({{ strategy.id }})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 策略绩效模态框 -->
+<div class="modal fade" id="performanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">策略绩效</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">总收益率</h6>
+                                <h3 class="card-title mb-0" id="totalReturn">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">夏普比率</h6>
+                                <h3 class="card-title mb-0" id="sharpeRatio">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">最大回撤</h6>
+                                <h3 class="card-title mb-0" id="maxDrawdown">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">胜率</h6>
+                                <h3 class="card-title mb-0" id="winRate">--</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+                <div class="table-responsive mt-4">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>指标</th>
+                                <th>数值</th>
+                            </tr>
+                        </thead>
+                        <tbody id="performanceMetrics">
+                            <!-- 绩效指标将通过JavaScript动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let performanceChart = null;
+
+// 启动策略
+async function startStrategy(strategyId) {
+    if (!confirm('确定要启动该策略吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetchAPI(`/strategy/${strategyId}/start`, {
+            method: 'POST'
+        });
+        
+        if (response.success) {
+            showAlert('策略已启动', 'success');
+            location.reload();
+        } else {
+            throw new Error(response.message || '启动策略失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 停止策略
+async function stopStrategy(strategyId) {
+    if (!confirm('确定要停止该策略吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetchAPI(`/strategy/${strategyId}/stop`, {
+            method: 'POST'
+        });
+        
+        if (response.success) {
+            showAlert('策略已停止', 'success');
+            location.reload();
+        } else {
+            throw new Error(response.message || '停止策略失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 编辑策略
+function editStrategy(strategyId) {
+    window.location.href = `/strategy/${strategyId}`;
+}
+
+// 查看策略绩效
+async function viewPerformance(strategyId) {
+    try {
+        const response = await fetchAPI(`/strategy/${strategyId}`);
+        
+        if (response.success) {
+            const data = response.data;
+            
+            // 更新绩效指标
+            document.getElementById('totalReturn').textContent = `${data.performance.total_return.toFixed(2)}%`;
+            document.getElementById('sharpeRatio').textContent = data.performance.sharpe_ratio.toFixed(2);
+            document.getElementById('maxDrawdown').textContent = `${data.performance.max_drawdown.toFixed(2)}%`;
+            document.getElementById('winRate').textContent = `${data.performance.win_rate.toFixed(2)}%`;
+            
+            // 更新绩效图表
+            updatePerformanceChart(data.performance.equity_curve);
+            
+            // 更新绩效指标表格
+            const metricsHtml = Object.entries(data.performance.metrics).map(([key, value]) => `
+                <tr>
+                    <td>${key}</td>
+                    <td>${typeof value === 'number' ? value.toFixed(4) : value}</td>
+                </tr>
+            `).join('');
+            document.getElementById('performanceMetrics').innerHTML = metricsHtml;
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('performanceModal'));
+            modal.show();
+        } else {
+            throw new Error(response.message || '获取策略绩效失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 删除策略
+async function deleteStrategy(strategyId) {
+    if (!confirm('确定要删除该策略吗？此操作不可恢复！')) {
+        return;
+    }
+    
+    try {
+        const response = await fetchAPI(`/strategy/${strategyId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.success) {
+            showAlert('策略已删除', 'success');
+            location.reload();
+        } else {
+            throw new Error(response.message || '删除策略失败');
+        }
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// 更新绩效图表
+function updatePerformanceChart(data) {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    if (performanceChart) {
+        performanceChart.destroy();
+    }
+    
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => new Date(d.timestamp).toLocaleDateString()),
+            datasets: [{
+                label: '净值曲线',
+                data: data.map(d => d.equity),
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: '策略净值曲线'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %} 

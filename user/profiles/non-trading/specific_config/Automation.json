@@ -1,0 +1,20 @@
+{
+    "automations": {
+        "1": {
+            "PeriodicCheck": {
+                "update_period": 300
+            },
+            "SendNotification": {
+                "message": "Your notification triggered"
+            },
+            "actions": [
+                "SendNotification"
+            ],
+            "conditions": [
+                "NoCondition"
+            ],
+            "trigger_event": "ProfitabilityThreshold"
+        }
+    },
+    "automations_count": 1
+}
