@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Telegram 通知设置</h3>
+                </div>
+                <div class="card-body">
+                    <form id="telegram-form">
+                        <div class="form-group">
+                            <label for="chat_id">Telegram Chat ID</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="chat_id" name="chat_id" 
+                                       value="{{ config.chat_id if config else '' }}" required>
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-info" data-toggle="modal" 
+                                            data-target="#chatIdHelp">
+                                        <i class="fas fa-question-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                请输入您的 Telegram Chat ID，用于接收通知消息
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="is_active" 
+                                       name="is_active" {{ 'checked' if config and config.is_active else '' }}>
+                                <label class="custom-control-label" for="is_active">启用 Telegram 通知</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>通知类型</label>
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="trade_notify" 
+                                       name="notification_types.trade" 
+                                       {{ 'checked' if config and config.notification_types.get('trade') else '' }}>
+                                <label class="custom-control-label" for="trade_notify">交易通知</label>
+                            </div>
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="alert_notify" 
+                                       name="notification_types.alert"
+                                       {{ 'checked' if config and config.notification_types.get('alert') else '' }}>
+                                <label class="custom-control-label" for="alert_notify">预警通知</label>
+                            </div>
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="system_notify" 
+                                       name="notification_types.system"
+                                       {{ 'checked' if config and config.notification_types.get('system') else '' }}>
+                                <label class="custom-control-label" for="system_notify">系统通知</label>
+                            </div>
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="performance_notify" 
+                                       name="notification_types.performance"
+                                       {{ 'checked' if config and config.notification_types.get('performance') else '' }}>
+                                <label class="custom-control-label" for="performance_notify">绩效通知</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>安静时间</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="quiet_hours_start">开始时间</label>
+                                    <select class="form-control" id="quiet_hours_start" name="quiet_hours_start">
+                                        <option value="">不设置</option>
+                                        {% for i in range(24) %}
+                                        <option value="{{ i }}" 
+                                                {{ 'selected' if config and config.quiet_hours_start == i else '' }}>
+                                            {{ '%02d' % i }}:00
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="quiet_hours_end">结束时间</label>
+                                    <select class="form-control" id="quiet_hours_end" name="quiet_hours_end">
+                                        <option value="">不设置</option>
+                                        {% for i in range(24) %}
+                                        <option value="{{ i }}"
+                                                {{ 'selected' if config and config.quiet_hours_end == i else '' }}>
+                                            {{ '%02d' % i }}:00
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                在安静时间内，除了重要的系统通知外，将不会发送其他通知
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                            <button type="button" class="btn btn-info" id="test-notification">发送测试消息</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat ID Help Modal -->
+<div class="modal fade" id="chatIdHelp" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">如何获取 Telegram Chat ID</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <ol>
+                    <li>在 Telegram 中搜索并添加机器人：<code>@{{ bot_username }}</code></li>
+                    <li>向机器人发送消息 <code>/start</code></li>
+                    <li>机器人会回复您的 Chat ID</li>
+                    <li>将获得的 Chat ID 填入上方输入框</li>
+                </ol>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    Chat ID 通常是一串数字，可能带有负号
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 表单提交
+    $('#telegram-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        // 收集通知类型
+        const notification_types = {
+            trade: $('#trade_notify').is(':checked'),
+            alert: $('#alert_notify').is(':checked'),
+            system: $('#system_notify').is(':checked'),
+            performance: $('#performance_notify').is(':checked')
+        };
+        
+        const data = {
+            chat_id: $('#chat_id').val(),
+            is_active: $('#is_active').is(':checked'),
+            notification_types: notification_types,
+            quiet_hours_start: $('#quiet_hours_start').val() || null,
+            quiet_hours_end: $('#quiet_hours_end').val() || null
+        };
+        
+        $.ajax({
+            url: '/api/telegram/config',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.status === 'success') {
+                    toastr.success('Telegram 配置已更新');
+                } else {
+                    toastr.error(response.message || '更新失败');
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON;
+                toastr.error(response?.message || '更新失败');
+            }
+        });
+    });
+    
+    // 发送测试消息
+    $('#test-notification').on('click', function() {
+        $.ajax({
+            url: '/api/telegram/test',
+            method: 'POST',
+            success: function(response) {
+                if (response.status === 'success') {
+                    toastr.success('测试消息已发送');
+                } else {
+                    toastr.error(response.message || '发送失败');
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON;
+                toastr.error(response?.message || '发送失败');
+            }
+        });
+    });
+    
+    // 加载当前配置
+    $.ajax({
+        url: '/api/telegram/config',
+        method: 'GET',
+        success: function(response) {
+            if (response.status === 'success' && response.data) {
+                const config = response.data;
+                $('#chat_id').val(config.chat_id);
+                $('#is_active').prop('checked', config.is_active);
+                
+                // 设置通知类型
+                const types = config.notification_types || {};
+                $('#trade_notify').prop('checked', types.trade);
+                $('#alert_notify').prop('checked', types.alert);
+                $('#system_notify').prop('checked', types.system);
+                $('#performance_notify').prop('checked', types.performance);
+                
+                // 设置安静时间
+                if (config.quiet_hours_start !== null) {
+                    $('#quiet_hours_start').val(config.quiet_hours_start);
+                }
+                if (config.quiet_hours_end !== null) {
+                    $('#quiet_hours_end').val(config.quiet_hours_end);
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

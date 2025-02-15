@@ -45,9 +45,29 @@ logs/
 # User-specific files
 user/config/*.json
 user/profiles/*/config.json
+config/config.py
 
 # Temporary files
 *.tmp
 *.bak
 *.swp
-*~ 
+*~
+
+# Docker
+.docker/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/ 
